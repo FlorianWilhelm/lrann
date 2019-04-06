@@ -4,128 +4,135 @@ Different data sets
 
 Note: Some parts copied over from Spotlight
 """
-
 import os
-import requests
+import shutil
+import logging
+from zipfile import ZipFile
+from collections import namedtuple, defaultdict
 
-import h5py
 import numpy as np
-import scipy.sparse as sp
+import scipy as sp
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+_logger = logging.getLogger(__name__)
+
+Resource = namedtuple('Resource', ['url', 'path', 'interactions', 'read_csv_args'])
+
+# all available datasets
+MOVIELENS_20M = Resource(
+    path='ml-20m/raw.zip',
+    interactions='ratings.csv',
+    read_csv_args={'names': ['user_id', 'item_id', 'rating', 'timestamp'],
+                   'header': 0},
+    url='http://files.grouplens.org/datasets/movielens/ml-20m.zip')
+MOVIELENS_100K_OLD = Resource(
+    path='ml100k-old/raw.zip',
+    interactions='u.data',
+    read_csv_args={'names': ['user_id', 'item_id', 'rating', 'timestamp'],
+                   'header': None,
+                   'sep': '\t'},
+    url='http://files.grouplens.org/datasets/movielens/ml-100k.zip')
+MOVIELENS_100K = Resource(
+    path='ml-latest-small/raw.zip',
+    interactions='ratings.csv',
+    read_csv_args={'names': ['user_id', 'item_id', 'rating', 'timestamp'],
+                   'header': 0},
+    url='http://files.grouplens.org/datasets/movielens/ml-latest-small.zip')
+
+DATA_DIR = os.path.join(os.path.expanduser('~'), '.lrann')
 
 
-DATA_DIR = os.path.join(os.path.expanduser('~'), 'recsys_data')
+def compact(iterable):
+    """Applies Compacter to get consecutive elements, e.g.
+    [1, 2, 5, 2] or ['a', 'b', 'e', 'b'] become
+    a compact, consecutive integer representation [0, 1, 2, 1]
+    """
+    mapper = defaultdict()
+    mapper.default_factory = mapper.__len__
+    return np.array([mapper[elem] for elem in iterable], dtype=np.int32)
 
 
-URL_PREFIX = ('https://github.com/maciejkula/recommender_datasets/'
-              'releases/download')
-VERSION = 'v0.2.0'
+class Loader(object):
+    def __init__(self, data_dir=DATA_DIR, show_progress=True):
+        self.data_dir = data_dir
+        self.show_progress = show_progress
+
+    def get_data(self, resource, download_if_missing=True):
+        dest_path = os.path.join(os.path.abspath(self.data_dir), resource.path)
+        dir_path = os.path.dirname(dest_path)
+        create_data_dir(dir_path)
+
+        if not os.path.isfile(dest_path):
+            if download_if_missing:
+                download(resource.url, dest_path, self.show_progress)
+            else:
+                raise IOError('Dataset missing.')
+        if count_files(dir_path) == 1:
+            unzip(dest_path, dir_path)
+
+        return dir_path
+
+    def load_movielens(self, variant='100k'):
+        variants = {'100k': MOVIELENS_100K,
+                    '100k-old': MOVIELENS_100K_OLD,
+                    '20m': MOVIELENS_20M}
+        resource = variants[variant]
+        dir_path = self.get_data(resource)
+        ratings = os.path.join(dir_path, resource.interactions)
+        df = pd.read_csv(ratings, **resource.read_csv_args)
+        user_ids = df.user_id.values
+        item_ids = df.item_id.values
+        ratings = df.rating.values
+        user_ids = compact(user_ids)
+        item_ids = compact(item_ids)
+        interactions = Interactions(user_ids=user_ids,
+                                    item_ids=item_ids,
+                                    ratings=ratings)
+        return interactions
+
+
+def download(url, dest_path, show_progress=True):
+    req = requests.get(url, stream=True)
+    req.raise_for_status()
+
+    bytestream = req.iter_content(chunk_size=2**20)
+    if show_progress:
+        file_size = int(req.headers['Content-Length'])
+        chunk_size = 1024
+        num_bars = file_size // chunk_size
+
+        bytestream = tqdm(bytestream,
+                          unit='KB',
+                          total=num_bars,
+                          ascii=True,
+                          desc=dest_path)
+
+    with open(dest_path, 'wb') as fd:
+        for chunk in bytestream:
+            fd.write(chunk)
+
+
+def unzip(src_path, dest_dir):
+    with ZipFile(src_path) as zip_file:
+        for obj in zip_file.filelist:
+            if obj.is_dir():
+                continue
+            source = zip_file.open(obj.filename)
+            filename = os.path.basename(obj.filename)
+            with open(os.path.join(dest_dir, filename), "wb") as target:
+                shutil.copyfileobj(source, target)
 
 
 def create_data_dir(path):
-
     if not os.path.isdir(path):
         os.makedirs(path)
 
 
-def download(url, dest_path, data_dir=DATA_DIR):
-    req = requests.get(url, stream=True)
-    req.raise_for_status()
-
-    with open(dest_path, 'wb') as fd:
-        for chunk in req.iter_content(chunk_size=2**20):
-            fd.write(chunk)
-
-
-def get_data(url, dest_subdir, dest_filename, download_if_missing=True):
-    data_dir = os.path.join(os.path.abspath(DATA_DIR), dest_subdir)
-    create_data_dir(data_dir)
-    dest_path = os.path.join(data_dir, dest_filename)
-
-    if not os.path.isfile(dest_path):
-        if download_if_missing:
-            download(url, dest_path)
-        else:
-            raise IOError('Dataset missing.')
-
-    return dest_path
-
-
-VARIANTS = ('100K',
-            '1M',
-            '10M',
-            '20M')
-
-
-def _get_movielens(dataset):
-
-    extension = '.hdf5'
-
-    path = get_data('/'.join((URL_PREFIX,
-                              VERSION,
-                              dataset + extension)),
-                    os.path.join('movielens', VERSION),
-                    'movielens_{}{}'.format(dataset,
-                                            extension))
-
-    with h5py.File(path, 'r') as data:
-        return (data['/user_id'][:],
-                data['/item_id'][:],
-                data['/rating'][:],
-                data['/timestamp'][:])
-
-
-def get_movielens_dataset(variant='100K'):
-    """
-    Download and return one of the Movielens datasets.
-
-    Parameters
-    ----------
-
-    variant: string, optional
-         String specifying which of the Movielens datasets
-         to download. One of ('100K', '1M', '10M', '20M').
-
-    Returns
-    -------
-
-    Interactions: :class:`spotlight.interactions.Interactions`
-        instance of the interactions class
-    """
-
-    if variant not in VARIANTS:
-        raise ValueError('Variant must be one of {}, '
-                         'got {}.'.format(VARIANTS, variant))
-
-    url = 'movielens_{}'.format(variant)
-
-    return Interactions(*_get_movielens(url))
-
-
-def _sliding_window(tensor, window_size, step_size=1):
-
-    for i in range(len(tensor), 0, -step_size):
-        yield tensor[max(i - window_size, 0):i]
-
-
-def _generate_sequences(user_ids, item_ids,
-                        indices,
-                        max_sequence_length,
-                        step_size):
-
-    for i in range(len(indices)):
-
-        start_idx = indices[i]
-
-        if i >= len(indices) - 1:
-            stop_idx = None
-        else:
-            stop_idx = indices[i + 1]
-
-        for seq in _sliding_window(item_ids[start_idx:stop_idx],
-                                   max_sequence_length,
-                                   step_size):
-
-            yield (user_ids[i], seq)
+def count_files(path):
+    return len([name for name in os.listdir(path)
+                if os.path.isfile(os.path.join(path, name))])
 
 
 class Interactions(object):
@@ -214,11 +221,9 @@ class Interactions(object):
                 ))
 
     def __len__(self):
-
         return len(self.user_ids)
 
     def _check(self):
-
         if self.user_ids.max() >= self.num_users:
             raise ValueError('Maximum user id greater '
                              'than declared number of users.')
@@ -260,149 +265,14 @@ class Interactions(object):
 
         return self.tocoo().tocsr()
 
-    def to_sequence(self, max_sequence_length=10, min_sequence_length=None, step_size=None):
+    def topandas(self):
         """
-        Transform to sequence form.
-
-        User-item interaction pairs are sorted by their timestamps,
-        and sequences of up to max_sequence_length events are arranged
-        into a (zero-padded from the left) matrix with dimensions
-        (num_sequences x max_sequence_length).
-
-        Valid subsequences of users' interactions are returned. For
-        example, if a user interacted with items [1, 2, 3, 4, 5], the
-        returned interactions matrix at sequence length 5 and step size
-        1 will be be given by:
-
-        .. code-block:: python
-
-           [[1, 2, 3, 4, 5],
-            [0, 1, 2, 3, 4],
-            [0, 0, 1, 2, 3],
-            [0, 0, 0, 1, 2],
-            [0, 0, 0, 0, 1]]
-
-        At step size 2:
-
-        .. code-block:: python
-
-           [[1, 2, 3, 4, 5],
-            [0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 1]]
-
-        Parameters
-        ----------
-
-        max_sequence_length: int, optional
-            Maximum sequence length. Subsequences shorter than this
-            will be left-padded with zeros.
-        min_sequence_length: int, optional
-            If set, only sequences with at least min_sequence_length
-            non-padding elements will be returned.
-        step-size: int, optional
-            The returned subsequences are the effect of moving a
-            a sliding window over the input. This parameter
-            governs the stride of that window. Increasing it will
-            result in fewer subsequences being returned.
-
-        Returns
-        -------
-
-        sequence interactions: :class:`~SequenceInteractions`
-            The resulting sequence interactions.
+        Transform to Pandas DataFrame
         """
-
-        if self.timestamps is None:
-            raise ValueError('Cannot convert to sequences, '
-                             'timestamps not available.')
-
-        if 0 in self.item_ids:
-            raise ValueError('0 is used as an item id, conflicting '
-                             'with the sequence padding value.')
-
-        if step_size is None:
-            step_size = max_sequence_length
-
-        # Sort first by user id, then by timestamp
-        sort_indices = np.lexsort((self.timestamps,
-                                   self.user_ids))
-
-        user_ids = self.user_ids[sort_indices]
-        item_ids = self.item_ids[sort_indices]
-
-        user_ids, indices, counts = np.unique(user_ids,
-                                              return_index=True,
-                                              return_counts=True)
-
-        num_subsequences = int(np.ceil(counts / float(step_size)).sum())
-
-        sequences = np.zeros((num_subsequences, max_sequence_length),
-                             dtype=np.int32)
-        sequence_users = np.empty(num_subsequences,
-                                  dtype=np.int32)
-        for i, (uid,
-                seq) in enumerate(_generate_sequences(user_ids,
-                                                      item_ids,
-                                                      indices,
-                                                      max_sequence_length,
-                                                      step_size)):
-            sequences[i][-len(seq):] = seq
-            sequence_users[i] = uid
-
-        if min_sequence_length is not None:
-            long_enough = sequences[:, -min_sequence_length] != 0
-            sequences = sequences[long_enough]
-            sequence_users = sequence_users[long_enough]
-
-        return (SequenceInteractions(sequences,
-                                     user_ids=sequence_users,
-                                     num_items=self.num_items))
-
-
-class SequenceInteractions(object):
-    """
-    Interactions encoded as a sequence matrix.
-
-    Parameters
-    ----------
-
-    sequences: array of np.int32 of shape (num_sequences x max_sequence_length)
-        The interactions sequence matrix, as produced by
-        :func:`~Interactions.to_sequence`
-    num_items: int, optional
-        The number of distinct items in the data
-
-    Attributes
-    ----------
-
-    sequences: array of np.int32 of shape (num_sequences x max_sequence_length)
-        The interactions sequence matrix, as produced by
-        :func:`~Interactions.to_sequence`
-    """
-
-    def __init__(self,
-                 sequences,
-                 user_ids=None, num_items=None):
-
-        self.sequences = sequences
-        self.user_ids = user_ids
-        self.max_sequence_length = sequences.shape[1]
-
-        if num_items is None:
-            self.num_items = sequences.max() + 1
-        else:
-            self.num_items = num_items
-
-    def __repr__(self):
-
-        num_sequences, sequence_length = self.sequences.shape
-
-        return ('<Sequence interactions dataset ({num_sequences} '
-                'sequences x {sequence_length} sequence length)>'
-                .format(
-                    num_sequences=num_sequences,
-                    sequence_length=sequence_length,
-                ))
+        data = np.column_stack([self.user_ids, self.item_ids, self.ratings])
+        return pd.DataFrame(data=data,
+                            columns=['user_id', 'item_id', 'rating'],
+                            dtype=np.int32)
 
 
 def _index_or_none(array, shuffle_index):

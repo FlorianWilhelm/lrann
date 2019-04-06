@@ -5,11 +5,23 @@ Experiments on the effectiveness of low-rank approximations in collaborative fil
 
 ## Installation
 
-In order to reproduce our experiments, create an environment `lrann` with the help of [Miniconda][].
-```bash
-conda env create -f environment.yaml
-```
-then take a look into the `experiments` folder.
+In order to reproduce our experiments: 
+
+1. create an environment `lrann` with the help of [Miniconda][],
+   ```bash
+   conda env create -f environment.yaml
+   ```
+2. activate the new environment with
+   ```bash
+    conda activate lrann
+    ```
+3. install `lrann` with:
+   ```bash
+    python setup.py install # or `develop`
+    ```
+4. optionally run the unit tests by executing `pytest`
+
+Then take a look into the `experiments` folder.
 
 ## Note
 

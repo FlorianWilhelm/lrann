@@ -9,5 +9,9 @@ dependencies:
   - pandas
   - pytorch>=1.0
   - scipy
+  - tqdm
   - requests
+  # needed for running the unit tests
+  - pytest
+  - pytest-cov
 
