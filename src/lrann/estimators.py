@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+from .losses import bpr_loss
 from .utils import (cpu, gpu, minibatch, set_seed, shuffle, sample_items,
                     process_ids)
 
@@ -17,7 +18,8 @@ class ImplicitEst(object):
     def __init__(self,
                  *,
                  model,
-                 embedding_dim=1,
+                 loss=None,
+                 embedding_dim=32,
                  n_iter=10,
                  batch_size=128,
                  l2=0.0,
@@ -50,25 +52,13 @@ class ImplicitEst(object):
         else:
             self._optimizer = self._optimizer(self._model.parameters())
 
-        self._optimizer = optim.Adam(
-            self._model.parameters(),
-            weight_decay=self._l2,
-            lr=self._learning_rate
-        )
+        if loss is None:
+            self._loss = bpr_loss
+        else:
+            self._loss = loss
 
         set_seed(self._random_state.randint(-10 ** 8, 10 ** 8),
                  cuda=self._use_cuda)
-
-    def _loss(self, positive_predictions, negative_predictions, mask=None):
-        loss = (1.0 - torch.sigmoid(positive_predictions -
-                                    negative_predictions))
-
-        if mask is not None:
-            mask = mask.float()
-            loss = loss * mask
-            return loss.sum() / mask.sum()
-
-        return loss.mean()
 
     def fit(self, interactions, verbose=False):
         """
