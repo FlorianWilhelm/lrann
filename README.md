@@ -16,4 +16,11 @@ then take a look into the `experiments` folder.
 This project has been set up using PyScaffold 3.1. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
 
+The basic structure and some code was taken from the [Spotlight][] recommender library, which is also MIT licensed.
+
+## Todo
+
+* Convert Numpy docstring style to Google style
+
 [Miniconda]: https://conda.io/en/latest/miniconda.html
+[Spotlight]: https://github.com/maciejkula/spotlight

@@ -7,12 +7,7 @@ dependencies:
   - python=3.6
   - jupyterlab
   - pandas
-  - pytorch
-  - scikit-learn
+  - pytorch>=1.0
   - scipy
-  - seaborn
-  - lightfm
-  - tqdm
-  - statsmodels
   - requests
 
