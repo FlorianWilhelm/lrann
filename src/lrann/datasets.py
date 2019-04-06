@@ -93,17 +93,18 @@ class Loader(object):
         return interactions
 
 
-def download(url, dest_path, show_progress=True, chunk_size=1024):
+def download(url, dest_path, show_progress=True):
     req = requests.get(url, stream=True)
     req.raise_for_status()
 
+    chunk_size = 2**20  # Megabyte, compare with unit below!
     bytestream = req.iter_content(chunk_size=chunk_size)
     if show_progress:
         file_size = int(req.headers['Content-Length'])
         n_bars = file_size // chunk_size
 
         bytestream = tqdm(bytestream,
-                          unit='KB',
+                          unit='MB',
                           total=n_bars,
                           ascii=True,
                           desc=dest_path)
