@@ -1,6 +1,6 @@
 # lrann
 
-Experiments on the effectiveness of low-rank approximations in collaborative filtering.
+Experiments on the effectiveness of **l**ow-**r**ank **a**pproximations in collaborative filtering compared to **n**eural **n**etworks.
 
 
 ## Installation
