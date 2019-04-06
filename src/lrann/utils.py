@@ -112,12 +112,9 @@ def sample_items(num_items, shape, random_state=None):
     return items
 
 
-def process_ids(user_ids, item_ids, num_items, use_cuda):
-    """
-    ToDo: Rework that
-    """
+def process_ids(user_ids, item_ids, n_items, use_cuda, cartesian):
     if item_ids is None:
-        item_ids = np.arange(num_items, dtype=np.int64)
+        item_ids = np.arange(n_items, dtype=np.int64)
 
     if np.isscalar(user_ids):
         user_ids = np.array(user_ids, dtype=np.int64)
@@ -125,8 +122,11 @@ def process_ids(user_ids, item_ids, num_items, use_cuda):
     user_ids = torch.from_numpy(user_ids.reshape(-1, 1).astype(np.int64))
     item_ids = torch.from_numpy(item_ids.reshape(-1, 1).astype(np.int64))
 
-    if item_ids.size()[0] != user_ids.size(0):
-        user_ids = user_ids.expand(item_ids.size())
+    if cartesian:
+        item_ids, user_ids = (item_ids.repeat(user_ids.size(0), 1),
+                              user_ids.repeat(1, item_ids.size(0)).view(-1, 1))
+    else:
+        user_ids = user_ids.expand(item_ids.size(0), 1)
 
     user_var = gpu(user_ids, use_cuda)
     item_var = gpu(item_ids, use_cuda)

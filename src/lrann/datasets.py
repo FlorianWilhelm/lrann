@@ -54,7 +54,7 @@ def compact(iterable):
     return np.array([mapper[elem] for elem in iterable], dtype=np.int32)
 
 
-class Loader(object):
+class DataLoader(object):
     def __init__(self, data_dir=DATA_DIR, show_progress=True):
         self.data_dir = data_dir
         self.show_progress = show_progress

@@ -15,10 +15,11 @@ from .utils import (cpu, gpu, minibatch, set_seed, shuffle, sample_items,
 
 
 class ImplicitEst(object):
+    """Estimator for implicit feedback using BPR
+    """
     def __init__(self,
                  *,
                  model,
-                 loss=None,
                  embedding_dim=32,
                  n_iter=10,
                  batch_size=128,
@@ -51,11 +52,6 @@ class ImplicitEst(object):
             )
         else:
             self._optimizer = self._optimizer(self._model.parameters())
-
-        if loss is None:
-            self._loss = bpr_loss
-        else:
-            self._loss = loss
 
         set_seed(self._random_state.randint(-10 ** 8, 10 ** 8),
                  cuda=self._use_cuda)
@@ -109,7 +105,7 @@ class ImplicitEst(object):
 
                 self._optimizer.zero_grad()
 
-                loss = self._loss(positive_prediction, negative_prediction)
+                loss = bpr_loss(positive_prediction, negative_prediction)
                 epoch_loss += loss.item()
 
                 loss.backward()
@@ -138,7 +134,7 @@ class ImplicitEst(object):
 
         return negative_prediction
 
-    def predict(self, user_ids, item_ids=None):
+    def predict(self, user_ids, item_ids=None, cartesian=True):
         """
         Make predictions: given a user id, compute the recommendation
         scores for items.
@@ -155,6 +151,8 @@ class ImplicitEst(object):
             Array containing the item ids for which prediction scores
             are desired. If not supplied, predictions for all items
             will be computed.
+        cartesian: bool, optional
+            Calculate the prediction for each item times each user
 
         Returns
         -------
@@ -164,11 +162,18 @@ class ImplicitEst(object):
         """
         self._model.train(False)
 
+        if np.isscalar(user_ids):
+            n_users = 1
+        else:
+            n_users = len(user_ids)
         user_ids, item_ids = process_ids(user_ids, item_ids,
                                          self._n_items,
-                                         self._use_cuda)
+                                         self._use_cuda,
+                                         cartesian)
 
         out = self._model(user_ids, item_ids)
-
-        return cpu(out).detach().numpy().flatten()
-
+        out = cpu(out).detach().numpy()
+        if cartesian:
+            return out.reshape(n_users, -1)
+        else:
+            return out.flatten()
