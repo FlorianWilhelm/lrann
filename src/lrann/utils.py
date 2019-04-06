@@ -9,7 +9,10 @@ Note: This was more or less copied over from Spotlight
 import numpy as np
 
 import torch
-from torch.autograd import Variable
+
+
+def is_cuda_available():
+    return torch.cuda.is_available()
 
 
 def gpu(tensor, gpu=False):

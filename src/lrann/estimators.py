@@ -1,36 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-Functionality related to training a given model architecture
+Functionality related to estimators which train a model
 
-Note: The Trainer class is more or less FMModel from Spotlight
+Note: The Implicit Est class is more or less FMModel from Spotlight
 """
 import numpy as np
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
 from .utils import (cpu, gpu, minibatch, set_seed, shuffle, sample_items,
                     process_ids)
 
 
-class Trainer(object):
+class ImplicitEst(object):
     def __init__(self,
                  *,
-                 num_users,
-                 num_items,
-                 net,
+                 model,
                  embedding_dim=1,
                  n_iter=10,
                  batch_size=128,
                  l2=0.0,
                  learning_rate=1e-2,
-                 optimizer_func=None,
+                 optimizer=None,
                  use_cuda=False,
                  sparse=False,
                  random_state=None,
-                 num_negative_samples=5):
+                 n_negative_samples=5):
 
         self._embedding_dim = embedding_dim
         self._n_iter = n_iter
@@ -40,12 +36,22 @@ class Trainer(object):
         self._use_cuda = use_cuda
         self._sparse = sparse
         self._random_state = random_state or np.random.RandomState()
-        self._num_negative_samples = num_negative_samples
-        self._net = net
-        self._num_items = num_items
-        self._num_users = num_users
+        self._n_negative_samples = n_negative_samples
+        self._model = gpu(model, use_cuda)
+        self._n_items = None
+        self._n_users = None
+
+        if optimizer is None:
+            self._optimizer = optim.Adam(
+                self._model.parameters(),
+                weight_decay=self._l2,
+                lr=self._learning_rate
+            )
+        else:
+            self._optimizer = self._optimizer(self._model.parameters())
+
         self._optimizer = optim.Adam(
-            self._net.parameters(),
+            self._model.parameters(),
             weight_decay=self._l2,
             lr=self._learning_rate
         )
@@ -81,7 +87,12 @@ class Trainer(object):
         verbose: bool
             Output additional information about current epoch and loss.
         """
-        self._net.train(True)
+        self._model.train(True)
+
+        if self._n_items is None:
+            self._n_items = interactions.n_items
+        if self._n_users is None:
+            self._n_users = interactions.n_users
 
         user_ids = interactions.user_ids.astype(np.int64)
         item_ids = interactions.item_ids.astype(np.int64)
@@ -98,26 +109,24 @@ class Trainer(object):
                                   self._use_cuda)
 
             epoch_loss = 0.0
-            a = gpu(torch.from_numpy(np.array([user_ids[10]])), self._use_cuda)
-            # print(self._net.user_embeddings(a))
-
-            for (minibatch_num,
-                 (batch_user,
-                  batch_item)) in enumerate(minibatch(user_ids_tensor,
-                                                      item_ids_tensor,
-                                                      batch_size=self._batch_size)):
-                positive_prediction = self._net(batch_user, batch_item)
+            minibatch_num = -1
+            batches = minibatch(user_ids_tensor,
+                                item_ids_tensor,
+                                batch_size=self._batch_size)
+            for minibatch_num, (batch_user, batch_item) in enumerate(batches):
+                positive_prediction = self._model(batch_user, batch_item)
                 negative_prediction = self._get_negative_prediction(batch_user)
 
                 self._optimizer.zero_grad()
 
                 loss = self._loss(positive_prediction, negative_prediction)
-                # for scaled
-                # loss += 0.01 * torch.norm(self._net.scale - 1., 2)
                 epoch_loss += loss.item()
 
                 loss.backward()
                 self._optimizer.step()
+
+            if minibatch_num == -1:
+                raise RuntimeError("There is not even a single mini-batch to train on!")
 
             epoch_loss /= minibatch_num + 1
 
@@ -131,11 +140,11 @@ class Trainer(object):
     def _get_negative_prediction(self, user_ids):
 
         negative_items = sample_items(
-            self._num_items,
+            self._n_items,
             len(user_ids),
-            random_state=self._random_state)  # np.random.RandomState(42))#
+            random_state=self._random_state)
         negative_var = gpu(torch.from_numpy(negative_items), self._use_cuda)
-        negative_prediction = self._net(user_ids, negative_var)
+        negative_prediction = self._model(user_ids, negative_var)
 
         return negative_prediction
 
@@ -163,13 +172,13 @@ class Trainer(object):
         predictions: np.array
             Predicted scores for all items in item_ids.
         """
-        self._net.train(False)
+        self._model.train(False)
 
         user_ids, item_ids = process_ids(user_ids, item_ids,
-                                         self._num_items,
+                                         self._n_items,
                                          self._use_cuda)
 
-        out = self._net(user_ids, item_ids)
+        out = self._model(user_ids, item_ids)
 
         return cpu(out).detach().numpy().flatten()
 

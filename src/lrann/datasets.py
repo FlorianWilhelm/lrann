@@ -11,7 +11,7 @@ from zipfile import ZipFile
 from collections import namedtuple, defaultdict
 
 import numpy as np
-import scipy as sp
+import scipy.sparse as sparse
 import pandas as pd
 import requests
 from tqdm import tqdm
@@ -93,19 +93,18 @@ class Loader(object):
         return interactions
 
 
-def download(url, dest_path, show_progress=True):
+def download(url, dest_path, show_progress=True, chunk_size=1024):
     req = requests.get(url, stream=True)
     req.raise_for_status()
 
-    bytestream = req.iter_content(chunk_size=2**20)
+    bytestream = req.iter_content(chunk_size=chunk_size)
     if show_progress:
         file_size = int(req.headers['Content-Length'])
-        chunk_size = 1024
-        num_bars = file_size // chunk_size
+        n_bars = file_size // chunk_size
 
         bytestream = tqdm(bytestream,
                           unit='KB',
-                          total=num_bars,
+                          total=n_bars,
                           ascii=True,
                           desc=dest_path)
 
@@ -186,9 +185,9 @@ class Interactions(object):
         array of timestamps
     weights: array of np.float32, optional
         array of weights
-    num_users: int, optional
+    n_users: int, optional
         Number of distinct users in the dataset.
-    num_items: int, optional
+    n_items: int, optional
         Number of distinct items in the dataset.
     """
 
@@ -196,11 +195,11 @@ class Interactions(object):
                  ratings=None,
                  timestamps=None,
                  weights=None,
-                 num_users=None,
-                 num_items=None):
+                 n_users=None,
+                 n_items=None):
 
-        self.num_users = num_users or int(user_ids.max() + 1)
-        self.num_items = num_items or int(item_ids.max() + 1)
+        self.n_users = n_users or int(user_ids.max() + 1)
+        self.n_items = n_items or int(item_ids.max() + 1)
 
         self.user_ids = user_ids
         self.item_ids = item_ids
@@ -212,26 +211,26 @@ class Interactions(object):
 
     def __repr__(self):
 
-        return ('<Interactions dataset ({num_users} users x {num_items} items '
-                'x {num_interactions} interactions)>'
+        return ('<Interactions dataset ({n_users} users x {n_items} items '
+                'x {n_interactions} interactions)>'
                 .format(
-                    num_users=self.num_users,
-                    num_items=self.num_items,
-                    num_interactions=len(self)
+                    n_users=self.n_users,
+                    n_items=self.n_items,
+                    n_interactions=len(self)
                 ))
 
     def __len__(self):
         return len(self.user_ids)
 
     def _check(self):
-        if self.user_ids.max() >= self.num_users:
+        if self.user_ids.max() >= self.n_users:
             raise ValueError('Maximum user id greater '
                              'than declared number of users.')
-        if self.item_ids.max() >= self.num_items:
+        if self.item_ids.max() >= self.n_items:
             raise ValueError('Maximum item id greater '
                              'than declared number of items.')
 
-        num_interactions = len(self.user_ids)
+        n_interactions = len(self.user_ids)
 
         for name, value in (('item IDs', self.item_ids),
                             ('ratings', self.ratings),
@@ -241,7 +240,7 @@ class Interactions(object):
             if value is None:
                 continue
 
-            if len(value) != num_interactions:
+            if len(value) != n_interactions:
                 raise ValueError('Invalid {} dimensions: length '
                                  'must be equal to number of interactions'
                                  .format(name))
@@ -255,8 +254,8 @@ class Interactions(object):
         col = self.item_ids
         data = self.ratings if self.ratings is not None else np.ones(len(self))
 
-        return sp.coo_matrix((data, (row, col)),
-                             shape=(self.num_users, self.num_items))
+        return sparse.coo_matrix((data, (row, col)),
+                                 shape=(self.n_users, self.n_items))
 
     def tocsr(self):
         """
@@ -317,8 +316,8 @@ def shuffle_interactions(interactions,
                                                   shuffle_indices),
                         weights=_index_or_none(interactions.weights,
                                                shuffle_indices),
-                        num_users=interactions.num_users,
-                        num_items=interactions.num_items)
+                        n_users=interactions.n_users,
+                        n_items=interactions.n_items)
 
 
 def random_train_test_split(interactions,
@@ -361,8 +360,8 @@ def random_train_test_split(interactions,
                                                    train_idx),
                          weights=_index_or_none(interactions.weights,
                                                 train_idx),
-                         num_users=interactions.num_users,
-                         num_items=interactions.num_items)
+                         n_users=interactions.n_users,
+                         n_items=interactions.n_items)
     test = Interactions(interactions.user_ids[test_idx],
                         interactions.item_ids[test_idx],
                         ratings=_index_or_none(interactions.ratings,
@@ -371,7 +370,7 @@ def random_train_test_split(interactions,
                                                   test_idx),
                         weights=_index_or_none(interactions.weights,
                                                test_idx),
-                        num_users=interactions.num_users,
-                        num_items=interactions.num_items)
+                        n_users=interactions.n_users,
+                        n_items=interactions.n_items)
 
     return train, test

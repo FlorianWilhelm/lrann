@@ -112,9 +112,9 @@ def sequence_mrr_score(model, test, exclude_preceding=False):
 def _get_precision_recall(predictions, targets, k):
 
     predictions = predictions[:k]
-    num_hit = len(set(predictions).intersection(set(targets)))
+    n_hit = len(set(predictions).intersection(set(targets)))
 
-    return float(num_hit) / len(predictions), float(num_hit) / len(targets)
+    return float(n_hit) / len(predictions), float(n_hit) / len(targets)
 
 
 def precision_recall_score(model, test, train=None, k=10):

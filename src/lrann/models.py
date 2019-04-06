@@ -66,7 +66,7 @@ class BilinearNet(nn.Module):
         Use sparse gradients.
     """
 
-    def __init__(self, num_users, num_items, embedding_dim=32,
+    def __init__(self, n_users, n_items, embedding_dim=32,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
 
         super().__init__()
@@ -76,17 +76,17 @@ class BilinearNet(nn.Module):
         if user_embedding_layer is not None:
             self.user_embeddings = user_embedding_layer
         else:
-            self.user_embeddings = ScaledEmbedding(num_users, embedding_dim,
+            self.user_embeddings = ScaledEmbedding(n_users, embedding_dim,
                                                    sparse=sparse)
 
         if item_embedding_layer is not None:
             self.item_embeddings = item_embedding_layer
         else:
-            self.item_embeddings = ScaledEmbedding(num_items, embedding_dim,
+            self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
                                                    sparse=sparse)
 
-        self.user_biases = ZeroEmbedding(num_users, 1, sparse=sparse)
-        self.item_biases = ZeroEmbedding(num_items, 1, sparse=sparse)
+        self.user_biases = ZeroEmbedding(n_users, 1, sparse=sparse)
+        self.item_biases = ZeroEmbedding(n_items, 1, sparse=sparse)
 
     def forward(self, user_ids, item_ids):
         """
@@ -122,13 +122,22 @@ class BilinearNet(nn.Module):
 
 
 class DeepNet(nn.Module):
-    def __init__(self, num_users, num_items, embedding_dim=8,
+    def __init__(self, n_users, n_items, embedding_dim=8,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
         super().__init__()
         self.embedding_dim = embedding_dim
 
-        self.user_embeddings = ScaledEmbedding(num_users, embedding_dim, sparse=sparse)
-        self.item_embeddings = ScaledEmbedding(num_items, embedding_dim, sparse=sparse)
+        if user_embedding_layer is not None:
+            self.user_embeddings = user_embedding_layer
+        else:
+            self.user_embeddings = ScaledEmbedding(n_users, embedding_dim,
+                                                   sparse=sparse)
+
+        if item_embedding_layer is not None:
+            self.item_embeddings = item_embedding_layer
+        else:
+            self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
+                                                   sparse=sparse)
 
         self._h1 = nn.Linear(2 * embedding_dim, embedding_dim * 4)
         self._h2 = nn.Linear(embedding_dim * 4, embedding_dim * 2)
