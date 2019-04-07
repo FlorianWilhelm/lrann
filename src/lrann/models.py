@@ -184,7 +184,7 @@ class DeepNet(BaseModel):
         embedding = torch.cat([user_embedding, item_embedding], dim=1)
 
         # dispatch to allow calling the actual network manually
-        return self._forward(embedding)
+        return self._forward(embedding).squeeze()
 
     def _forward(self, input_):
         hidden = torch.sigmoid(self._h1(input_))

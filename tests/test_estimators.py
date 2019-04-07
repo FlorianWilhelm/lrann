@@ -37,8 +37,18 @@ def test_explicit_est_lra():
     data.binarize_(4)
     train, test = random_train_test_split(data)
     lra_model = BilinearNet(data.n_users, data.n_items, embedding_dim=32, sparse=False)
-    lra_est = ExplicitEst(model=lra_model,
-                          n_iter=1)
+    lra_est = ExplicitEst(model=lra_model, n_iter=1)
+    lra_est.fit(train, verbose=True)
+    item_ids = np.arange(5)
+    assert lra_est.predict(1, item_ids, cartesian=False).shape == (5,)
+
+
+def test_explicit_est_nn():
+    data = DataLoader().load_movielens('100k')
+    data.binarize_(4)
+    train, test = random_train_test_split(data)
+    lra_model = DeepNet(data.n_users, data.n_items, embedding_dim=32, sparse=False)
+    lra_est = ExplicitEst(model=lra_model,  n_iter=1)
     lra_est.fit(train, verbose=True)
     item_ids = np.arange(5)
     assert lra_est.predict(1, item_ids, cartesian=False).shape == (5,)

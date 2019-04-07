@@ -242,4 +242,4 @@ def logistic_loss(observed_ratings, predicted_ratings):
 
     return F.binary_cross_entropy_with_logits(predicted_ratings,
                                               observed_ratings,
-                                              size_average=True)
+                                              reduction='mean')
