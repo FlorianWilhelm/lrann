@@ -204,14 +204,13 @@ class Interactions(object):
 
         self.user_ids = user_ids
         self.item_ids = item_ids
-        self.ratings = ratings
+        self.ratings = ratings if ratings is not None else np.ones(user_ids.shape)
         self.timestamps = timestamps
         self.weights = weights
 
         self._check()
 
     def __repr__(self):
-
         return ('<Interactions dataset ({n_users} users x {n_items} items '
                 'x {n_interactions} interactions)>'
                 .format(
@@ -277,7 +276,7 @@ class Interactions(object):
 
         row = self.user_ids
         col = self.item_ids
-        data = self.ratings if self.ratings is not None else np.ones(len(self))
+        data = self.ratings
 
         return sparse.coo_matrix((data, (row, col)),
                                  shape=(self.n_users, self.n_items))

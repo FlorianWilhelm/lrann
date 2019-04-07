@@ -73,7 +73,7 @@ class BilinearNet(BaseModel):
         Use sparse gradients.
     """
 
-    def __init__(self, n_users, n_items, embedding_dim=32,
+    def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
 
         super().__init__(n_users, n_items)
@@ -92,8 +92,13 @@ class BilinearNet(BaseModel):
             self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
                                                    sparse=sparse)
 
-        self.user_biases = ZeroEmbedding(n_users, 1, sparse=sparse)
-        self.item_biases = ZeroEmbedding(n_items, 1, sparse=sparse)
+        self.biases = biases
+        if biases:
+            self.user_biases = ZeroEmbedding(n_users, 1, sparse=sparse)
+            self.item_biases = ZeroEmbedding(n_items, 1, sparse=sparse)
+        else:
+            self.user_biases = None
+            self.item_biases = None
 
     def forward(self, user_ids, item_ids):
         """
@@ -120,16 +125,20 @@ class BilinearNet(BaseModel):
         user_embedding = user_embedding.squeeze()
         item_embedding = item_embedding.squeeze()
 
-        user_bias = self.user_biases(user_ids).squeeze()
-        item_bias = self.item_biases(item_ids).squeeze()
+        dot = user_embedding * item_embedding
+        if dot.dim() > 1:  # handles case where embedding_dim=1
+            dot = dot.sum(1)
 
-        dot = (user_embedding * item_embedding).sum(1)
+        if self.biases:
+            user_bias = self.user_biases(user_ids).squeeze()
+            item_bias = self.item_biases(item_ids).squeeze()
+            dot += user_bias + item_bias
 
-        return dot + user_bias + item_bias
+        return dot
 
 
 class DeepNet(BaseModel):
-    def __init__(self, n_users, n_items, embedding_dim=8,
+    def __init__(self, n_users, n_items, *, embedding_dim=8,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
         super().__init__(n_users, n_items)
         self.embedding_dim = embedding_dim
@@ -173,10 +182,12 @@ class DeepNet(BaseModel):
         item_embedding = self.item_embeddings(item_ids)
 
         embedding = torch.cat([user_embedding, item_embedding], dim=1)
-        hidden = torch.sigmoid(self._h1(embedding))
-        # if not self.training:
-        #    print(hidden)
+
+        # dispatch to allow calling the actual network manually
+        return self._forward(embedding)
+
+    def _forward(self, input_):
+        hidden = torch.sigmoid(self._h1(input_))
         hidden = torch.sigmoid(self._h2(hidden))
         out = self._h3(hidden)
-
         return out
