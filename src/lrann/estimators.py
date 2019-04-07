@@ -35,6 +35,10 @@ class BaseEstimator(metaclass=ABCMeta):
     def fit(self, interactions, **kwargs):
         pass
 
+    def _predict(self, user_ids, item_ids):
+        """Overwrite this if you need to do more then just applying the model"""
+        return self._model(user_ids, item_ids)
+
     def predict(self, user_ids, item_ids=None, cartesian=False):
         """
         Make predictions: given a user id, compute the recommendation
@@ -77,7 +81,7 @@ class BaseEstimator(metaclass=ABCMeta):
         except RuntimeError as e:
             raise RuntimeError("Maybe you want to set `cartesian=True`?") from e
 
-        out = self._model(user_ids, item_ids)
+        out = self._predict(user_ids, item_ids)
         out = cpu(out).detach().numpy()
         if cartesian:
             return out.reshape(n_users, -1)
@@ -317,6 +321,6 @@ class ExplicitEst(BaseEstimator):
                 raise ValueError('Degenerate epoch loss: {}'
                                  .format(epoch_loss))
 
-    def predict(self, user_ids, item_ids=None, cartesian=False):
-        out = super().predict(user_ids, item_ids, cartesian)
-        return torch.sigmoid(torch.from_numpy(out)).numpy()
+    def _predict(self, user_ids, item_ids):
+        out = super()._predict(user_ids, item_ids)
+        return torch.sigmoid(out)
