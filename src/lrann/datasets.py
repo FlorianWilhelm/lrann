@@ -70,7 +70,7 @@ class DataLoader(object):
             else:
                 raise IOError('Dataset missing.')
         if count_files(dir_path) == 1:
-            unzip(dest_path, dir_path)
+            unzip_flat(dest_path, dir_path)
 
         return dir_path
 
@@ -114,7 +114,16 @@ def download(url, dest_path, show_progress=True):
             fd.write(chunk)
 
 
-def unzip(src_path, dest_dir):
+def unzip_flat(src_path, dest_dir):
+    """Unzip all files in archive discarding the directory structure
+
+    Args:
+        src_path:
+        dest_dir:
+
+    Returns:
+
+    """
     with ZipFile(src_path) as zip_file:
         for obj in zip_file.filelist:
             if obj.is_dir():
