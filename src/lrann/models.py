@@ -132,13 +132,93 @@ class BilinearNet(BaseModel):
         if self.biases:
             user_bias = self.user_biases(user_ids).squeeze()
             item_bias = self.item_biases(item_ids).squeeze()
-            dot += user_bias + item_bias
+            dot = dot + user_bias + item_bias
+
+        return dot
+
+
+class ResNet(BaseModel):
+    def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True, activation=None,
+                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+
+        super().__init__(n_users, n_items)
+
+        self.embedding_dim = embedding_dim
+
+        if user_embedding_layer is not None:
+            self.user_embeddings = user_embedding_layer
+        else:
+            self.user_embeddings = ScaledEmbedding(n_users, embedding_dim,
+                                                   sparse=sparse)
+
+        if item_embedding_layer is not None:
+            self.item_embeddings = item_embedding_layer
+        else:
+            self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
+                                                   sparse=sparse)
+
+        self.biases = biases
+        if biases:
+            self.user_biases = ZeroEmbedding(n_users, 1, sparse=sparse)
+            self.item_biases = ZeroEmbedding(n_items, 1, sparse=sparse)
+        else:
+            self.user_biases = None
+            self.item_biases = None
+
+        if activation is not None:
+            self._activation = activation
+        else:
+            self._activation = torch.sigmoid
+
+        self.h1 = nn.Linear(embedding_dim, 2 * embedding_dim)
+        self.h2 = nn.Linear(2 * embedding_dim, embedding_dim)
+
+    def forward(self, user_ids, item_ids):
+        """
+        Compute the forward pass of the representation.
+
+        Parameters
+        ----------
+
+        user_ids: tensor
+            Tensor of user indices.
+        item_ids: tensor
+            Tensor of item indices.
+
+        Returns
+        -------
+
+        predictions: tensor
+            Tensor of predictions.
+        """
+
+        user_embedding = self.user_embeddings(user_ids)
+        item_embedding = self.item_embeddings(item_ids)
+
+        user_embedding = user_embedding.squeeze()
+        item_embedding = item_embedding.squeeze()
+
+        dots = user_embedding * item_embedding
+
+        res = self._activation(self.h1(dots))
+        res = self.h2(res)
+        res = self._activation(res)
+        res = 1 + 0.5*(res - 0.5)
+        dots = dots * res
+
+        if dots.dim() > 1:  # handles case where embedding_dim=1
+            dot = dots.sum(1)
+
+        if self.biases:
+            user_bias = self.user_biases(user_ids).squeeze()
+            item_bias = self.item_biases(item_ids).squeeze()
+            dot = dot + user_bias + item_bias
 
         return dot
 
 
 class DeepNet(BaseModel):
-    def __init__(self, n_users, n_items, *, embedding_dim=8,
+    def __init__(self, n_users, n_items, *, embedding_dim=8, activation=None,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
         super().__init__(n_users, n_items)
         self.embedding_dim = embedding_dim
@@ -154,6 +234,10 @@ class DeepNet(BaseModel):
         else:
             self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
                                                    sparse=sparse)
+        if activation is not None:
+            self._activation = activation
+        else:
+            self._activation = torch.sigmoid
 
         self._h1 = nn.Linear(2 * embedding_dim, embedding_dim * 4)
         self._h2 = nn.Linear(embedding_dim * 4, embedding_dim * 2)
@@ -187,7 +271,7 @@ class DeepNet(BaseModel):
         return self._forward(embedding).squeeze()
 
     def _forward(self, input_):
-        hidden = torch.sigmoid(self._h1(input_))
-        hidden = torch.sigmoid(self._h2(hidden))
+        hidden = self._activation(self._h1(input_))
+        hidden = self._activation(self._h2(hidden))
         out = self._h3(hidden)
         return out
