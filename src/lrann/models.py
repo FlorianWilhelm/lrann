@@ -44,7 +44,14 @@ class ZeroEmbedding(nn.Embedding):
             self.weight.data[self.padding_idx].fill_(0)
 
 
-class BilinearNet(nn.Module):
+class BaseModel(nn.Module):
+    def __init__(self, n_users, n_items):
+        super().__init__()
+        self.n_users = n_users
+        self.n_items = n_items
+
+
+class BilinearNet(BaseModel):
     """
     Bilinear factorization representation.
     Encodes both users and items as an embedding layer; the score
@@ -69,7 +76,7 @@ class BilinearNet(nn.Module):
     def __init__(self, n_users, n_items, embedding_dim=32,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
 
-        super().__init__()
+        super().__init__(n_users, n_items)
 
         self.embedding_dim = embedding_dim
 
@@ -121,10 +128,10 @@ class BilinearNet(nn.Module):
         return dot + user_bias + item_bias
 
 
-class DeepNet(nn.Module):
+class DeepNet(BaseModel):
     def __init__(self, n_users, n_items, embedding_dim=8,
                  user_embedding_layer=None, item_embedding_layer=None, sparse=False):
-        super().__init__()
+        super().__init__(n_users, n_items)
         self.embedding_dim = embedding_dim
 
         if user_embedding_layer is not None:

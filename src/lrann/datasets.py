@@ -246,6 +246,30 @@ class Interactions(object):
                                  'must be equal to number of interactions'
                                  .format(name))
 
+    def implicit_(self, pivot):
+        """Makes the current dataset implicit by setting values < pivot to 0
+        and values >= pivot to 1
+
+        Args:
+            le_value:
+
+        Returns:
+
+        """
+        assert np.max(self.ratings) >= pivot
+        mask = self.ratings >= pivot
+        self.ratings = self.ratings[mask]
+        self.user_ids = self.user_ids[mask]
+        self.item_ids = self.item_ids[mask]
+
+    def binarize_(self, pivot):
+        """Makes the current dataset implicit by setting values < pivot to -1
+           and values >= pivot to 1"""
+        assert np.max(self.ratings) >= pivot
+        mask = self.ratings >= pivot
+        self.ratings[mask] = 1
+        self.ratings[~mask] = -1
+
     def tocoo(self):
         """
         Transform to a scipy.sparse COO matrix.
