@@ -160,5 +160,6 @@ def rmse_score(model, test):
     """
 
     predictions = model.predict(test.user_ids, test.item_ids)
+    ratings = np.clip(test.ratings, 0, 1)  # bring -1 to 0
 
-    return np.sqrt(((test.ratings - predictions) ** 2).mean())
+    return np.sqrt(((ratings - predictions) ** 2).mean())

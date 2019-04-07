@@ -69,10 +69,13 @@ class BaseEstimator(metaclass=ABCMeta):
             n_users = 1
         else:
             n_users = len(user_ids)
-        user_ids, item_ids = process_ids(user_ids, item_ids,
-                                         self._model.n_items,
-                                         self._use_cuda,
-                                         cartesian)
+        try:
+            user_ids, item_ids = process_ids(user_ids, item_ids,
+                                             self._model.n_items,
+                                             self._use_cuda,
+                                             cartesian)
+        except RuntimeError as e:
+            raise RuntimeError("Maybe you want to set `cartesian=True`?") from e
 
         out = self._model(user_ids, item_ids)
         out = cpu(out).detach().numpy()
@@ -284,7 +287,7 @@ class ExplicitEst(BaseEstimator):
                                   self._use_cuda)
             item_ids_tensor = gpu(torch.from_numpy(items),
                                   self._use_cuda)
-            ratings_tensor = gpu(torch.from_numpy(ratings),
+            ratings_tensor = gpu(torch.from_numpy(ratings).double(),
                                  self._use_cuda)
 
             epoch_loss = 0.0
@@ -313,3 +316,7 @@ class ExplicitEst(BaseEstimator):
             if np.isnan(epoch_loss) or epoch_loss == 0.0:
                 raise ValueError('Degenerate epoch loss: {}'
                                  .format(epoch_loss))
+
+    def predict(self, user_ids, item_ids=None, cartesian=False):
+        out = super().predict(user_ids, item_ids, cartesian)
+        return torch.sigmoid(torch.from_numpy(out)).numpy()
