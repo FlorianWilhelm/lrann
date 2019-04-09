@@ -413,3 +413,75 @@ class ResNetPlus(BaseModel):
             dots = dots + user_bias + item_bias
 
         return dots
+
+
+class MoTBilinearNet(BaseModel):
+    def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True,
+                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+
+        super().__init__(n_users, n_items)
+
+        self.embedding_dim = embedding_dim
+
+        if user_embedding_layer is not None:
+            self.user_embeddings = user_embedding_layer
+        else:
+            self.user_embeddings = ScaledEmbedding(n_users, embedding_dim,
+                                                   sparse=sparse)
+
+        if item_embedding_layer is not None:
+            self.item_embeddings = item_embedding_layer
+        else:
+            self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
+                                                   sparse=sparse)
+
+        self.biases = biases
+        if biases:
+            self.user_biases = ZeroEmbedding(n_users, 1, sparse=sparse)
+            self.item_biases = ZeroEmbedding(n_items, 1, sparse=sparse)
+        else:
+            self.user_biases = None
+            self.item_biases = None
+
+        self.scaler_net = nn.Linear(embedding_dim, embedding_dim)
+        self.scaler_w = nn.Parameter(-5*torch.ones(embedding_dim))
+
+    def forward(self, user_ids, item_ids):
+        """
+        Compute the forward pass of the representation.
+
+        Parameters
+        ----------
+
+        user_ids: tensor
+            Tensor of user indices.
+        item_ids: tensor
+            Tensor of item indices.
+
+        Returns
+        -------
+
+        predictions: tensor
+            Tensor of predictions.
+        """
+
+        user_embedding = self.user_embeddings(user_ids)
+        item_embedding = self.item_embeddings(item_ids)
+
+        user_embedding = user_embedding.squeeze()
+        item_embedding = item_embedding.squeeze()
+
+        dots = user_embedding * item_embedding
+        scaler_in = self.scaler_net(dots)
+        scale = torch.sigmoid(self.scaler_w)*torch.tanh(scaler_in) + 1
+        dots = scale * dots
+
+        if dots.dim() > 1:  # handles case where embedding_dim=1
+            dots = dots.sum(1)
+
+        if self.biases:
+            user_bias = self.user_biases(user_ids).squeeze()
+            item_bias = self.item_biases(item_ids).squeeze()
+            dots = dots + user_bias + item_bias
+
+        return dots

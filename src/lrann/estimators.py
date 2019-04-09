@@ -95,7 +95,6 @@ class ImplicitEst(BaseEstimator):
     def __init__(self,
                  *,
                  model,
-                 embedding_dim=32,
                  n_iter=10,
                  batch_size=128,
                  l2=0.0,
@@ -104,7 +103,6 @@ class ImplicitEst(BaseEstimator):
                  n_negative_samples=5,
                  **kwargs):
         super().__init__(model=model, **kwargs)
-        self._embedding_dim = embedding_dim
         self._n_iter = n_iter
         self._learning_rate = learning_rate
         self._batch_size = batch_size
@@ -240,7 +238,6 @@ class ExplicitEst(BaseEstimator):
     def __init__(self,
                  *,
                  model,
-                 embedding_dim=32,
                  n_iter=10,
                  batch_size=256,
                  l2=0.0,
@@ -250,7 +247,6 @@ class ExplicitEst(BaseEstimator):
 
         super().__init__(model=model, **kwargs)
 
-        self._embedding_dim = embedding_dim
         self._n_iter = n_iter
         self._learning_rate = learning_rate
         self._batch_size = batch_size
