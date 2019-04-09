@@ -254,7 +254,7 @@ class Interactions(object):
                                  'must be equal to number of interactions'
                                  .format(name))
 
-    def implicit_(self, pivot):
+    def implicit_(self, pivot=None, use_user_mean=False):
         """Makes the current dataset implicit by setting values < pivot to 0
         and values >= pivot to 1
 
@@ -264,19 +264,35 @@ class Interactions(object):
         Returns:
 
         """
-        assert np.max(self.ratings) >= pivot
-        mask = self.ratings >= pivot
+        if use_user_mean:
+            mask = self._get_user_mean_mask()
+        else:
+            assert np.max(self.ratings) >= pivot
+            mask = self.ratings >= pivot
+        self.ratings[mask] = 1
         self.ratings = self.ratings[mask]
         self.user_ids = self.user_ids[mask]
         self.item_ids = self.item_ids[mask]
 
-    def binarize_(self, pivot):
+    def binarize_(self, pivot=None, use_user_mean=False):
         """Makes the current dataset implicit by setting values < pivot to -1
            and values >= pivot to 1"""
-        assert np.max(self.ratings) >= pivot
-        mask = self.ratings >= pivot
+        if use_user_mean:
+            mask = self._get_user_mean_mask()
+        else:
+            assert np.max(self.ratings) >= pivot
+            mask = self.ratings >= pivot
         self.ratings[mask] = 1
         self.ratings[~mask] = -1
+
+    def _get_user_mean_mask(self):
+        user_mean_ratings = {user_id: self.ratings[np.where(self.user_ids == user_id)[0]].mean()
+                             for user_id in range(self.n_users)}
+        user_specific_pivots = np.array([user_mean_ratings[user_id]
+                                         for user_id in self.user_ids])
+        user_mean_mask = self.ratings >= user_specific_pivots
+
+        return user_mean_mask
 
     def tocoo(self):
         """
