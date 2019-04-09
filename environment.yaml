@@ -1,4 +1,4 @@
-name: lrann 
+name: lrann
 channels:
   - conda-forge
   - defaults
@@ -14,4 +14,5 @@ dependencies:
   # needed for running the unit tests
   - pytest
   - pytest-cov
-
+  - scikit-learn
+  - seaborn
