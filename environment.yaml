@@ -16,3 +16,6 @@ dependencies:
   - pytest-cov
   - scikit-learn
   - seaborn
+  - pip:
+     - lightfm==1.15
+     - pyyaml==5.1

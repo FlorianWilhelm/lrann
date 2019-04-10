@@ -58,11 +58,11 @@ class BilinearNet(BaseModel):
     for a user-item pair is given by the dot product of the item
     and user latent vectors.
 
-    num_users (int): Number of users in the model.
-    num_items: int
-        Number of items in the model.
+    n_users (int): Number of users in the model.
+    n_items (int): Number of items in the model.
     embedding_dim: int, optional
         Dimensionality of the latent representations.
+    biases (bool):
     user_embedding_layer: an embedding layer, optional
         If supplied, will be used as the user embedding layer
         of the network.
@@ -74,9 +74,11 @@ class BilinearNet(BaseModel):
     """
 
     def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
 
         self.embedding_dim = embedding_dim
 
@@ -139,9 +141,11 @@ class BilinearNet(BaseModel):
 
 class ResNet(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True, activation=None,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
 
         self.embedding_dim = embedding_dim
 
@@ -219,8 +223,12 @@ class ResNet(BaseModel):
 
 class DeepNet(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=8, activation=None,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
+
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
+
         self.embedding_dim = embedding_dim
 
         if user_embedding_layer is not None:
@@ -279,8 +287,12 @@ class DeepNet(BaseModel):
 
 class NaluNet(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=8,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
+
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
+
         self.embedding_dim = embedding_dim
 
         if user_embedding_layer is not None:
@@ -340,9 +352,11 @@ class NaluNet(BaseModel):
 
 class ResNetPlus(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
 
         self.embedding_dim = embedding_dim
 
@@ -417,9 +431,11 @@ class ResNetPlus(BaseModel):
 
 class MoTBilinearNet(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=32, biases=True,
-                 user_embedding_layer=None, item_embedding_layer=None, sparse=False):
+                 user_embedding_layer=None, item_embedding_layer=None,
+                 torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
+        torch.manual_seed(torch_seed)
 
         self.embedding_dim = embedding_dim
 
