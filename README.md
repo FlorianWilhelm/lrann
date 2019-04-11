@@ -23,6 +23,19 @@ In order to reproduce our experiments:
 
 Then take a look into the `experiments` folder.
 
+## Run Experiments
+
+Run the comparative experiments between MF and DNN invoking the following command:
+```
+run_dnn_experiment -c <config_file> -o test_result.csv -v
+```
+where `<config>` describes the relative path to the config file as already provided in `experiments`, `<results_file>` is the path where the results .csv-file should be saved. `-v` turns on verbose mode.
+
+For example:
+```
+run_dnn_experiment -c experiments/experiment_config.yml -o test_result.csv -v
+```
+
 ## Note
 
 This project has been set up using PyScaffold 3.1. For details and usage

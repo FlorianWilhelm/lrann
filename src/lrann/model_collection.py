@@ -33,6 +33,11 @@ class ModelCollection:
                                                 nn.Sigmoid(),
                                                 nn.Linear(self.d, 1))
 
+        self.models['single_model_tanh'] = nn.Sequential(
+                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Tanh(),
+                                                nn.Linear(self.d, 1))
+
         # Double Hidden Layer Models
         self.models['double_model_elu'] = nn.Sequential(
                                                 nn.Linear(2 * self.d, 2 * self.d),
@@ -53,6 +58,13 @@ class ModelCollection:
                                                 nn.Sigmoid(),
                                                 nn.Linear(2 * self.d, self.d),
                                                 nn.Sigmoid(),
+                                                nn.Linear(self.d, 1))
+
+        self.models['double_model_tanh'] = nn.Sequential(
+                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Tanh(),
+                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Tanh(),
                                                 nn.Linear(self.d, 1))
 
         # Triple Hidden Layer Models
@@ -81,6 +93,15 @@ class ModelCollection:
                                                 nn.Sigmoid(),
                                                 nn.Linear(self.d, self.d),
                                                 nn.Sigmoid(),
+                                                nn.Linear(self.d, 1))
+
+        self.models['triple_model_tanh'] = nn.Sequential(
+                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Tanh(),
+                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Tanh(),
+                                                nn.Linear(self.d, self.d),
+                                                nn.Tanh(),
                                                 nn.Linear(self.d, 1))
 
         for model in self.models.values():

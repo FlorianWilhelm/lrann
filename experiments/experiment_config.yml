@@ -3,9 +3,43 @@ torch_init_seed: 42
 estimator_init_seed: 42
 test_percentage: 0.2
 embedding_dim: 32
+
 mf_grid_search:
   torch_init_seed: [42, 147, 17, 28, 83]
   l2: [0.0, 0.003, 0.01, 0.03]
   learning_rate: [0.001, 0.003, 0.01, 0.03]
   n_epochs: 20
   eval_prec_k: [1, 5, 10]
+
+# Hyperparameters and Validation Results for best BilinearNet+ImplicitEst configuration
+mf_best_params:
+  torch_init_seed: 17
+  l2: 0.0
+  learning_rate: 0.003
+  n_epochs: 10
+  mrr: 0.031317
+  prec_at_10: 0.083279
+
+# Set of Parameters to try permutations in order to beat the MF baseline
+dnn_exp_params:
+  mode: ['unpretrained_trainable',
+         'pretrained_untrainable',
+         'pretrained_trainable']
+  model: ['perceptron',
+         'single_model_elu',
+         'single_model_relu',
+         'single_model_sigmoid',
+         'single_model_tanh',
+         'double_model_elu',
+         'double_model_relu',
+         'double_model_sigmoid',
+         'double_model_tanh',
+         'triple_model_elu',
+         'triple_model_relu',
+         'triple_model_sigmoid',
+         'triple_model_tanh']
+  torch_init_seed: [42, 147, 17, 28, 83]
+  learning_rate: [0.001, 0.003, 0.01]
+  n_epochs: 20  # perform early stopping
+
+
