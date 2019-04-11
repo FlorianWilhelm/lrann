@@ -100,14 +100,12 @@ class ImplicitEst(BaseEstimator):
                  l2=0.0,
                  learning_rate=1e-2,
                  optimizer=None,
-                 n_negative_samples=5,
                  **kwargs):
         super().__init__(model=model, **kwargs)
         self._n_iter = n_iter
         self._learning_rate = learning_rate
         self._batch_size = batch_size
         self._l2 = l2
-        self._n_negative_samples = n_negative_samples
 
         if optimizer is None:
             self._optimizer = optim.Adam(
