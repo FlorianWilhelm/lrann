@@ -222,8 +222,8 @@ class ResNet(BaseModel):
 
 
 class DeepNet(BaseModel):
-    def __init__(self, n_users, n_items, *, embedding_dim=8, activation=None,
-                 user_embedding_layer=None, item_embedding_layer=None,
+    def __init__(self, n_users, n_items, *, embedding_dim=8,
+                 user_embedding_layer=None, item_embedding_layer=None, rank_net=None,
                  torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
@@ -242,14 +242,15 @@ class DeepNet(BaseModel):
         else:
             self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
                                                    sparse=sparse)
-        if activation is not None:
-            self._activation = activation
-        else:
-            self._activation = torch.sigmoid
 
-        self._h1 = nn.Linear(2 * embedding_dim, embedding_dim * 4)
-        self._h2 = nn.Linear(embedding_dim * 4, embedding_dim * 2)
-        self._h3 = nn.Linear(embedding_dim * 2, 1)
+        if rank_net is not None:
+            self.rank_net = rank_net
+        else:
+            self.rank_net = nn.Sequential(nn.Linear(embedding_dim * 2, embedding_dim * 4),
+                                          nn.Sigmoid(),
+                                          nn.Linear(embedding_dim * 4, embedding_dim * 2),
+                                          nn.Sigmoid(),
+                                          nn.Linear(embedding_dim * 2, 1))
 
     def forward(self, user_ids, item_ids):
         """
@@ -279,9 +280,7 @@ class DeepNet(BaseModel):
         return self._forward(embedding).squeeze()
 
     def _forward(self, input_):
-        hidden = self._activation(self._h1(input_))
-        hidden = self._activation(self._h2(hidden))
-        out = self._h3(hidden)
+        out = self.rank_net(input_)
         return out
 
 
