@@ -3,6 +3,7 @@ Module to perform experiments for MF vs. DNN
 """
 import argparse
 import logging
+import pickle
 import sys
 import time
 
@@ -124,7 +125,7 @@ def main(args):
                   "---\nModels:\n---\n{}\n"
                   "---\nTorch Init Seeds:\n---\n{}\n"
                   "---\nLearning Rates:\n---\n{}\n"
-                  "---\nEpochs:\n---\n{}").format(
+                  "---\nEpochs:\n---\n{}\n").format(
             n_experiments,
             '\n'.join(config['dnn_exp_params']['mode']),
             '\n'.join(config['dnn_exp_params']['model']),
@@ -211,6 +212,10 @@ def main(args):
                         logging.info("Finished Experiment {:05d}/{:05d} - current best MRR {:.4f}".format(
                                 exp_counter, n_experiments, current_best_mrr
                         ))
+                        # Safety Copy of Results
+                        if (exp_counter % int(n_experiments/10)) == 0:
+                            pickle.dump(results,
+                                        open('interim_'+args.output_filepath), 'wb')
 
     results_df = pd.DataFrame(results, columns=['mode',
                                                 'model',
