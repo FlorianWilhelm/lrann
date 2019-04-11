@@ -1,0 +1,11 @@
+train_test_split_seed: 42
+torch_init_seed: 42
+estimator_init_seed: 42
+test_percentage: 0.2
+embedding_dim: 32
+mf_grid_search:
+  torch_init_seed: [42, 147, 17, 28, 83]
+  l2: [0.0, 0.003, 0.01, 0.03]
+  learning_rate: [0.001, 0.003, 0.01, 0.03]
+  n_epochs: 20
+  eval_prec_k: [1, 5, 10]
