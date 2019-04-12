@@ -214,8 +214,16 @@ def main(args):
                         ))
                         # Safety Copy of Results
                         if (exp_counter % int(n_experiments/10)) == 0:
-                            pickle.dump(results,
-                                        open('interim_'+args.output_filepath), 'wb')
+                            results_df = pd.DataFrame(results, columns=['mode',
+                                                                        'model',
+                                                                        'torch_seed',
+                                                                        'learning_rate',
+                                                                        'epoch',
+                                                                        'test_mrr',
+                                                                        'eval_time',
+                                                                        'train_time',
+                                                                        'n_params'])
+                            results_df.to_csv(args.output_filepath, index=False)
 
     results_df = pd.DataFrame(results, columns=['mode',
                                                 'model',
