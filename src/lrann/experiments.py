@@ -3,7 +3,6 @@ Module to perform experiments for MF vs. DNN
 """
 import argparse
 import logging
-import pickle
 import sys
 import time
 
@@ -17,7 +16,7 @@ from .datasets import DataLoader, random_train_test_split
 from .estimators import ImplicitEst
 from .models import BilinearNet, DeepNet
 from .utils import is_cuda_available
-from .evaluations import mrr_score
+from .evaluations import mrr_score, precision_recall_score
 from .model_collection import ModelCollection
 
 
@@ -33,6 +32,13 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(
         description="MF vs. DNN Experiments")
+    parser.add_argument(
+        '-e',
+        dest="experiment",
+        help="name for the experiment to be conducted",
+        type=str,
+        metavar="STR",
+        required=True)
     parser.add_argument(
         '-c',
         dest="config_filepath",
@@ -68,16 +74,13 @@ def setup_logging(loglevel):
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 
-def main(args):
-    # TODO: Expose params filename over command line argument and experiment over CLI
+def nn_search(args):
     # Params should contain best MF parameters as well as test configurations
-    args = parse_args(args)
-    setup_logging(args.loglevel)
     _logger.info("Starting MF vs. DNN Experiments ...")
 
     config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
 
-    results = []
+
 
     data = DataLoader().load_movielens('100k')
     data.binarize_(use_user_mean=True)
@@ -117,8 +120,6 @@ def main(args):
                      * len(config['dnn_exp_params']['torch_init_seed'])
                      * len(config['dnn_exp_params']['learning_rate'])
                      * config['dnn_exp_params']['n_epochs'])
-    exp_counter = 0
-    current_best_mrr = 0
 
     logging.info(("{} Experiments pending ...\n"
                   "---\nModes:\n---\n{}\n"
@@ -132,6 +133,10 @@ def main(args):
             '\n'.join([str(el) for el in config['dnn_exp_params']['torch_init_seed']]),
             '\n'.join([str(el) for el in config['dnn_exp_params']['learning_rate']]),
             config['dnn_exp_params']['n_epochs']))
+
+    exp_counter = 0
+    current_best_mrr = 0
+    results = []
 
     for mode in config['dnn_exp_params']['mode']:
 
@@ -237,10 +242,101 @@ def main(args):
     results_df.to_csv(args.output_filepath, index=False)
 
 
+def mf_hyperopt(args):
+    _logger.info("Starting MF (BilinearNet) Hyperparameter Search ...")
+
+    config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
+
+    _logger.info("Preparing Data ...")
+    data = DataLoader().load_movielens('100k')
+    data.implicit_(use_user_mean=True)
+    rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
+    train_data, test_data = random_train_test_split(data,
+                                                    test_percentage=config['test_percentage'],
+                                                    random_state=rd_split_state)
+
+    n_pos = pd.Series(data.ratings).value_counts(normalize=False)[1.0]
+    _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
+
+    grid_hyperparams = config['mf_grid_search']
+    n_combinations = (len(grid_hyperparams['torch_init_seed'])
+                      * len(grid_hyperparams['l2'])
+                      * len(grid_hyperparams['learning_rate'])
+                      * grid_hyperparams['n_epochs'])
+    _logger.info("Searching in the following grid of hyperparameters:\n{}".format(
+            '\n'.join(['{}: {}'.format(key, str(val))
+                       for key, val in grid_hyperparams.items()])))
+    _logger.info("--- {} hyperparameter combinations found ---".format(n_combinations))
+    _logger.info("Starting Search ...")
+
+    counter = 0
+    results = []
+
+    for torch_init_seed in grid_hyperparams['torch_init_seed']:
+        for learning_rate in grid_hyperparams['learning_rate']:
+            for l2 in grid_hyperparams['l2']:
+
+                mf_model = BilinearNet(data.n_users, data.n_items,
+                                       embedding_dim=config['embedding_dim'],
+                                       torch_seed=torch_init_seed)
+                mf_est = ImplicitEst(model=mf_model,
+                                     n_iter=1,
+                                     use_cuda=is_cuda_available(),
+                                     random_state=np.random.RandomState(seed=config['estimator_init_seed']),
+                                     l2=l2,
+                                     learning_rate=learning_rate)
+
+                for epoch in range(grid_hyperparams['n_epochs']):
+                    start = time.time()
+
+                    # Training
+                    mf_est.fit(train_data, verbose=False)
+
+                    # Evaluation
+                    mrr = mrr_score(mf_est, test_data).mean()
+                    prec_at_1 = precision_recall_score(mf_est, test_data, k=1)[0].mean()
+                    prec_at_5 = precision_recall_score(mf_est, test_data, k=5)[0].mean()
+                    prec_at_10 = precision_recall_score(mf_est, test_data, k=10)[0].mean()
+
+                    res = (torch_init_seed,
+                           learning_rate,
+                           l2,
+                           epoch,
+                           mrr,
+                           prec_at_1,
+                           prec_at_5,
+                           prec_at_10)
+
+                    results.append(res)
+
+                    duration = int(time.time() - start)
+                    counter += 1
+
+                    _logger.info("Experiment {:05d}/{:05d} took {} seconds".format(
+                            counter, n_combinations, duration))
+
+    results_df = pd.DataFrame(results, columns=['torch_init_seed',
+                                                'learning_rate',
+                                                'l2',
+                                                'epoch',
+                                                'mrr',
+                                                'prec_at_1',
+                                                'prec_at_5',
+                                                'prec_at_10'])
+    results_df.to_csv(args.output_filepath, index=False)
+    _logger.info("Hyperparameter Search finished, saved results to {}".format(args.output_filepath))
+
+
 def run():
     """Entry point for console_scripts
     """
-    main(sys.argv[1:])
+    args = parse_args(sys.argv[1:])
+    setup_logging(args.loglevel)
+
+    if args.experiment == 'nn_search':
+        nn_search(args)
+    elif args.experiment == 'mf_hyperopt':
+        mf_hyperopt(args)
 
 
 if __name__ == "__main__":

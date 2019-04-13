@@ -25,15 +25,32 @@ Then take a look into the `experiments` folder.
 
 ## Run Experiments
 
+In order to reproduce our research results, we provide an easy way to run different experiments on your own having the provided package installed. Each command requires three command line arguments:
+
+* `-e`: denotes the name of the experiment, see below
+* `-c`: config_file: relative path to the config file as already provided in `experiments`
+* `-o`: results_file: path where the results .csv-file should be saved
+
+In addition, by adding `-v` you may enable verbose mode.
+
+### Best Neural Network Search
 Run the comparative experiments between MF and DNN invoking the following command:
+
 ```
-run_dnn_experiment -c <config_file> -o test_result.csv -v
+run_dnn_experiment -e nn_search -c <config_file> -o <results_file> -v
 ```
-where `<config>` describes the relative path to the config file as already provided in `experiments`, `<results_file>` is the path where the results .csv-file should be saved. `-v` turns on verbose mode.
 
 For example:
+
 ```
 run_dnn_experiment -c experiments/experiment_config.yml -o test_result.csv -v
+```
+
+### Matrix Factorization Hyperparameter Optimization
+Run the matrix factorization hyperparameter search:
+
+```
+run_dnn_experiment -e mf_hyperopt -c <config_file> -o <results_file> -v
 ```
 
 ## Note

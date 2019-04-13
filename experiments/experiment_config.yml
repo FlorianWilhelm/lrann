@@ -13,12 +13,12 @@ mf_grid_search:
 
 # Hyperparameters and Validation Results for best BilinearNet+ImplicitEst configuration
 mf_best_params:
-  torch_init_seed: 17
+  torch_init_seed: 147
   l2: 0.0
   learning_rate: 0.003
-  n_epochs: 10
-  mrr: 0.031317
-  prec_at_10: 0.083279
+  n_epochs: 15  # keep in mind that epochs are 0-indexed, such that the best score after epoch 14 means training 15 epochs
+  mrr: 0.043602
+  prec_at_10: 0.070638
 
 # Set of Parameters to try permutations in order to beat the MF baseline
 dnn_exp_params:
