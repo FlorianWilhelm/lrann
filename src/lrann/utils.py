@@ -207,8 +207,8 @@ def get_entity_corr_coef(interactions: coo_matrix, entity_id: int, entity_type: 
         ratings = np.squeeze(np.asarray(interactions.tocsr()[:, entity_id].todense()))
 
     if ignore_sparse_zeros:
-        pos_idx = np.where(ratings != 0)[0]
-        pos_ratings = ratings[pos_idx]
+        idx = np.where(ratings != 0)[0]
+        ratings = ratings[idx]
 
     # TODO: Use `sample_items` method
     # Use this for BPR
@@ -217,13 +217,13 @@ def get_entity_corr_coef(interactions: coo_matrix, entity_id: int, entity_type: 
             n_sample = interactions.shape[1]
         else:
             n_sample = interactions.shape[0]
-        neg_idx = np.random.randint(n_sample, size=len(pos_idx))
+        neg_idx = np.random.randint(n_sample, size=len(idx))
         # neg_idx = np.random.choice(np.setdiff1d(np.arange(interactions.n_items),
         #                                         pos_idx), size=len(pos_idx),
         #                            replace=False)
-        neg_ratings = [0] * len(pos_ratings)
-        idx = np.concatenate([pos_idx, neg_idx])
-        ratings = np.concatenate([pos_ratings, neg_ratings])
+        neg_ratings = [0] * len(ratings)
+        idx = np.concatenate([idx, neg_idx])
+        ratings = np.concatenate([ratings, neg_ratings])
 
     cov_embed = cov_embed[idx]
 

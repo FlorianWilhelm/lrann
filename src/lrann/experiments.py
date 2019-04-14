@@ -14,7 +14,7 @@ from torch import nn
 import yaml
 
 from .datasets import DataLoader, random_train_test_split
-from .estimators import ImplicitEst
+from .estimators import ImplicitEst, ExplicitEst
 from .models import BilinearNet, DeepNet
 from .utils import is_cuda_available, get_entity_corr_coef
 from .evaluations import mrr_score, precision_recall_score
@@ -352,7 +352,11 @@ def covariance_analysis(args):
     best_config = config['mf_best_params']
 
     data = DataLoader().load_movielens('100k')
-    data.implicit_(use_user_mean=True)
+    if cov_config['dataset_type'] == 'implicit':
+        data.implicit_(use_user_mean=True)
+    else:
+        data.binarize_(use_user_mean=True)
+
     data_sparse = data.tocoo()
     entity_nums = {
         'user': data.n_users,
@@ -369,13 +373,20 @@ def covariance_analysis(args):
     mf_model = BilinearNet(data.n_users, data.n_items,
                            embedding_dim=config['embedding_dim'],
                            torch_seed=int(best_config['torch_init_seed']))
-
-    mf_est = ImplicitEst(model=mf_model,
-                         n_iter=int(best_config['n_epochs']),
-                         use_cuda=is_cuda_available(),
-                         random_state=np.random.RandomState(seed=config['estimator_init_seed']),
-                         l2=best_config['l2'],
-                         learning_rate=best_config['learning_rate'])
+    if cov_config['dataset_type'] == 'implicit':
+        mf_est = ImplicitEst(model=mf_model,
+                             n_iter=int(best_config['n_epochs']),
+                             use_cuda=is_cuda_available(),
+                             random_state=np.random.RandomState(seed=config['estimator_init_seed']),
+                             l2=best_config['l2'],
+                             learning_rate=best_config['learning_rate'])
+    else:
+        mf_est = ExplicitEst(model=mf_model,
+                             n_iter=int(best_config['n_epochs']),
+                             use_cuda=is_cuda_available(),
+                             random_state=np.random.RandomState(seed=config['estimator_init_seed']),
+                             l2=best_config['l2'],
+                             learning_rate=best_config['learning_rate'])
 
     _logger.info("Training BilinearNet (MF) ...")
     mf_est.fit(data, verbose=True)
@@ -422,7 +433,7 @@ def covariance_analysis(args):
         results[entity_type]['interaction_count'] = \
             results[entity_type]['entity_id'].map(interaction_counts[entity_type])
 
-    # TODO: Generate visualizations
+    # TODO: Generate visualizations in JuPyter notebook
 
     results_df = pd.concat([results['user'], results['item']], axis=0)
     results_df.to_csv(args.output_filepath, index=False)
