@@ -101,7 +101,7 @@ def get_latent_factors(train_data, test_data, config):
                          learning_rate=best_config['learning_rate'])
 
     mf_est.fit(train_data, verbose=False)
-    import pdb; pdb.set_trace()
+
     # Evaluate MF and check assertAlmostEqual on MRR score
     mf_mrr = mrr_score(mf_est, test_data).mean()
     np.testing.assert_almost_equal(mf_mrr, best_config['mrr'], decimal=4)
