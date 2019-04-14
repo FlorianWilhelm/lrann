@@ -2,6 +2,7 @@
 Module to perform experiments for MF vs. DNN
 """
 import argparse
+from collections import Counter
 import logging
 import sys
 import time
@@ -15,7 +16,7 @@ import yaml
 from .datasets import DataLoader, random_train_test_split
 from .estimators import ImplicitEst
 from .models import BilinearNet, DeepNet
-from .utils import is_cuda_available
+from .utils import is_cuda_available, get_entity_corr_coef
 from .evaluations import mrr_score, precision_recall_score
 from .model_collection import ModelCollection
 
@@ -344,7 +345,89 @@ def mf_hyperopt(args):
 
 
 def covariance_analysis(args):
-    return None
+    _logger.info("Starting Covariance Experiments ...")
+
+    config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
+    cov_config = config['covariance_params']
+    best_config = config['mf_best_params']
+
+    data = DataLoader().load_movielens('100k')
+    data.implicit_(use_user_mean=True)
+    data_sparse = data.tocoo()
+    entity_nums = {
+        'user': data.n_users,
+        'item': data.n_items
+    }
+    interaction_counts = {
+        'user': Counter(data.user_ids),
+        'item': Counter(data.item_ids),
+    }
+
+    n_pos = pd.Series(data.ratings).value_counts(normalize=False)[1.0]
+    _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
+
+    mf_model = BilinearNet(data.n_users, data.n_items,
+                           embedding_dim=config['embedding_dim'],
+                           torch_seed=int(best_config['torch_init_seed']))
+
+    mf_est = ImplicitEst(model=mf_model,
+                         n_iter=int(best_config['n_epochs']),
+                         use_cuda=is_cuda_available(),
+                         random_state=np.random.RandomState(seed=config['estimator_init_seed']),
+                         l2=best_config['l2'],
+                         learning_rate=best_config['learning_rate'])
+
+    _logger.info("Training BilinearNet (MF) ...")
+    mf_est.fit(data, verbose=True)
+
+    # Obtain Model Latent Vectors for Covariance Analysis
+    embeddings = {}
+    embeddings['user'] = mf_model.user_embeddings.weight.detach().numpy()
+    embeddings['item'] = mf_model.item_embeddings.weight.detach().numpy()
+
+    results = {}
+
+    for entity_type in ['user', 'item']:
+
+        corr_stats = []
+
+        for entity_id in range(entity_nums[entity_type]):
+
+            if interaction_counts[entity_type][entity_id] > 1:
+                corr_stats.append(get_entity_corr_coef(data_sparse,
+                                                       entity_id,
+                                                       entity_type,
+                                                       embeddings,
+                                                       ignore_sparse_zeros=cov_config['ignore_sparse_zeros'],
+                                                       use_zero_mean=cov_config['use_zero_mean'],
+                                                       corr_type=cov_config['corr_type'],
+                                                       neg_sampling=True))
+            else:
+                corr_stats.append(np.nan)
+
+        results[entity_type] = pd.Series(corr_stats)
+        _logger.info("\nEntity Type:", entity_type)
+        _logger.info("Ignore Sparse Zeros:", cov_config['ignore_sparse_zeros'])
+        _logger.info("Use Zero Mean:", cov_config['use_zero_mean'])
+        _logger.info("Correlation Type:", cov_config['corr_type'])
+        _logger.info("---\nStats:\n---")
+        _logger.info(pd.Series(corr_stats).describe())
+
+        results[entity_type] = pd.DataFrame.from_dict({
+            'entity_type': [entity_type]*entity_nums[entity_type],
+            'correlation': corr_stats,
+            'entity_id': list(range(entity_nums[entity_type]))
+        })
+
+        results[entity_type]['interaction_count'] = \
+            results[entity_type]['entity_id'].map(interaction_counts[entity_type])
+
+    # TODO: Generate visualizations
+
+    results_df = pd.concat([results['user'], results['item']], axis=0)
+    results_df.to_csv(args.output_filepath, index=False)
+    _logger.info("Covariance Analysis finished, saved results to {}".format(
+        args.output_filepath))
 
 
 def run():
@@ -357,6 +440,8 @@ def run():
         nn_search(args)
     elif args.experiment == 'mf_hyperopt':
         mf_hyperopt(args)
+    elif args.experiment == 'covariance':
+        covariance_analysis(args)
 
 
 if __name__ == "__main__":

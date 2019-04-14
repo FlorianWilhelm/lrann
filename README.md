@@ -53,6 +53,13 @@ Run the matrix factorization hyperparameter search:
 run_dnn_experiment -e mf_hyperopt -c <config_file> -o <results_file> -v
 ```
 
+### Covariance Analysis
+In order to retrieve results for the covariance analysis, perform the following command
+
+```
+run_dnn_experiment -e covariance -c <config_file> -o <results_file> -v
+```
+
 ## Note
 
 This project has been set up using PyScaffold 3.1. For details and usage
@@ -63,6 +70,7 @@ The basic structure and some code was taken from the [Spotlight][] recommender l
 ## Todo
 
 * Convert Numpy docstring style to Google style
+* Change command name from `run_dnn_experiment` to `run_lrann_experiment`
 
 [Miniconda]: https://conda.io/en/latest/miniconda.html
 [Spotlight]: https://github.com/maciejkula/spotlight
