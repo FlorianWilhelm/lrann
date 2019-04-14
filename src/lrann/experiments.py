@@ -74,25 +74,21 @@ def setup_logging(loglevel):
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 
-def nn_search(args):
-    # Params should contain best MF parameters as well as test configurations
-    _logger.info("Starting MF vs. DNN Experiments ...")
+def get_latent_factors(train_data, test_data, config):
+    """
+    Retrieves the best MF model, trains it and returns its embeddings
 
-    config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
+    Args:
+        train_data:
+        test_data:
+        config:
 
-
-
-    data = DataLoader().load_movielens('100k')
-    data.binarize_(use_user_mean=True)
-
-    rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
-    train_data, test_data = random_train_test_split(data,
-                                                    test_percentage=config['test_percentage'],
-                                                    random_state=rd_split_state)
-
+    Returns:
+        latent_factors:
+    """
     # Train best model to obtain pretrained embeddings
     best_config = config['mf_best_params']
-    mf_model = BilinearNet(data.n_users, data.n_items,
+    mf_model = BilinearNet(train_data.n_users, train_data.n_items,
                            embedding_dim=config['embedding_dim'],
                            torch_seed=int(best_config['torch_init_seed']))
 
@@ -100,7 +96,7 @@ def nn_search(args):
                          n_iter=int(best_config['n_epochs']),
                          use_cuda=is_cuda_available(),
                          random_state=np.random.RandomState(
-                             seed=config['estimator_init_seed']),
+                                 seed=config['estimator_init_seed']),
                          l2=best_config['l2'],
                          learning_rate=best_config['learning_rate'])
 
@@ -114,6 +110,26 @@ def nn_search(args):
     latent_factors['user_embedding'] = mf_model.user_embeddings.weight.detach()
     latent_factors['item_embedding'] = mf_model.item_embeddings.weight.detach()
 
+    return latent_factors
+
+
+def nn_search(args):
+    # Params should contain best MF parameters as well as test configurations
+    _logger.info("Starting MF vs. DNN Experiments ...")
+
+    config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
+
+    data = DataLoader().load_movielens('100k')
+    data.binarize_(use_user_mean=True)
+    rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
+    train_data, test_data = random_train_test_split(data,
+                                                    test_percentage=config['test_percentage'],
+                                                    random_state=rd_split_state)
+
+    n_pos = pd.Series(data.ratings).value_counts(normalize=False)[1.0]
+    _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
+
+    latent_factors = get_latent_factors(train_data, test_data, config)
     models = ModelCollection(d=config['embedding_dim'])
     n_experiments = (len(config['dnn_exp_params']['mode'])
                      * len(config['dnn_exp_params']['model'])
@@ -325,6 +341,10 @@ def mf_hyperopt(args):
                                                 'prec_at_10'])
     results_df.to_csv(args.output_filepath, index=False)
     _logger.info("Hyperparameter Search finished, saved results to {}".format(args.output_filepath))
+
+
+def covariance_analysis(args):
+    return None
 
 
 def run():
