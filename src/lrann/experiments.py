@@ -101,7 +101,7 @@ def get_latent_factors(train_data, test_data, config):
                          learning_rate=best_config['learning_rate'])
 
     mf_est.fit(train_data, verbose=False)
-
+    import pdb; pdb.set_trace()
     # Evaluate MF and check assertAlmostEqual on MRR score
     mf_mrr = mrr_score(mf_est, test_data).mean()
     np.testing.assert_almost_equal(mf_mrr, best_config['mrr'], decimal=4)
@@ -120,7 +120,7 @@ def nn_search(args):
     config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
 
     data = DataLoader().load_movielens('100k')
-    data.binarize_(use_user_mean=True)
+    data.implicit_(use_user_mean=True)
     rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
     train_data, test_data = random_train_test_split(data,
                                                     test_percentage=config['test_percentage'],
