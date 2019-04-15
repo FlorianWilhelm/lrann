@@ -131,7 +131,10 @@ def nn_search(args):
     _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
 
     latent_factors = get_latent_factors(train_data, test_data, config)
-    models = ModelCollection(d=config['embedding_dim'])
+    if not config['dnn_exp_params']['use_hadamard']:
+        models = ModelCollection(input_size=config['embedding_dim']*2)
+    else:
+        models = ModelCollection(input_size=config['embedding_dim'])
     n_experiments = (len(config['dnn_exp_params']['mode'])
                      * len(config['dnn_exp_params']['model'])
                      * len(config['dnn_exp_params']['torch_init_seed'])
@@ -194,6 +197,7 @@ def nn_search(args):
                                         rank_net=rank_net,
                                         user_embedding_layer=user_embedding_layer,
                                         item_embedding_layer=item_embedding_layer,
+                                        use_hadamard=config['dnn_exp_params']['use_hadamard'],
                                         torch_seed=torch_seed)
 
                     # Count parameters

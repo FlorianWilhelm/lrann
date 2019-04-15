@@ -41,5 +41,10 @@ dnn_exp_params:
   torch_init_seed: [42, 147, 17, 28, 83]
   learning_rate: [0.001, 0.003, 0.01]
   n_epochs: 20  # perform early stopping
+  use_hadamard: False
 
-
+covariance_params:
+  dataset_type: 'explicit'  # 'implicit'
+  corr_type: 'pearson'  # 'spearman', 'kendall'
+  ignore_sparse_zeros: True
+  use_zero_mean: True

@@ -6,8 +6,8 @@ from torch import nn
 
 
 class ModelCollection:
-    def __init__(self, d: int = 16, torch_seed: int = 42):
-        self.d = d
+    def __init__(self, input_size: int = 32, torch_seed: int = 42):
+        self.input_size = input_size
         self.torch_seed = torch_seed
 
         self._initialize_models()
@@ -15,94 +15,94 @@ class ModelCollection:
     def _initialize_models(self):
         self.models = dict()
 
-        self.models['perceptron'] = nn.Sequential(nn.Linear(2 * self.d, 1))
+        self.models['perceptron'] = nn.Sequential(nn.Linear(self.input_size, 1))
 
         # Single Hidden Layer Models
         self.models['single_model_elu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['single_model_relu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['single_model_sigmoid'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['single_model_tanh'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         # Double Hidden Layer Models
         self.models['double_model_elu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['double_model_relu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['double_model_sigmoid'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear( self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['double_model_tanh'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         # Triple Hidden Layer Models
         self.models['triple_model_elu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ELU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['triple_model_relu'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size,  self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.ReLU(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['triple_model_sigmoid'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Sigmoid(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         self.models['triple_model_tanh'] = nn.Sequential(
-                                                nn.Linear(2 * self.d, 2 * self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(2 * self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(self.d, self.d),
+                                                nn.Linear(self.input_size, self.input_size),
                                                 nn.Tanh(),
-                                                nn.Linear(self.d, 1))
+                                                nn.Linear(self.input_size, 1))
 
         for model in self.models.values():
             ModelCollection.seed_model(model, self.torch_seed)

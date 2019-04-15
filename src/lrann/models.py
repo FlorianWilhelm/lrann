@@ -224,12 +224,13 @@ class ResNet(BaseModel):
 class DeepNet(BaseModel):
     def __init__(self, n_users, n_items, *, embedding_dim=8,
                  user_embedding_layer=None, item_embedding_layer=None, rank_net=None,
-                 torch_seed=42, sparse=False):
+                 use_hadamard=False, torch_seed=42, sparse=False):
 
         super().__init__(n_users, n_items)
         torch.manual_seed(torch_seed)
 
         self.embedding_dim = embedding_dim
+        self.use_hadamard = use_hadamard
 
         if user_embedding_layer is not None:
             self.user_embeddings = user_embedding_layer
@@ -243,14 +244,7 @@ class DeepNet(BaseModel):
             self.item_embeddings = ScaledEmbedding(n_items, embedding_dim,
                                                    sparse=sparse)
 
-        if rank_net is not None:
-            self.rank_net = rank_net
-        else:
-            self.rank_net = nn.Sequential(nn.Linear(embedding_dim * 2, embedding_dim * 4),
-                                          nn.Sigmoid(),
-                                          nn.Linear(embedding_dim * 4, embedding_dim * 2),
-                                          nn.Sigmoid(),
-                                          nn.Linear(embedding_dim * 2, 1))
+        self.rank_net = rank_net
 
     def forward(self, user_ids, item_ids):
         """
@@ -274,7 +268,10 @@ class DeepNet(BaseModel):
         user_embedding = self.user_embeddings(user_ids)
         item_embedding = self.item_embeddings(item_ids)
 
-        embedding = torch.cat([user_embedding, item_embedding], dim=1)
+        if not self.use_hadamard:
+            embedding = torch.cat([user_embedding, item_embedding], dim=1)
+        else:
+            embedding = user_embedding * item_embedding
 
         # dispatch to allow calling the actual network manually
         return self._forward(embedding).squeeze()
