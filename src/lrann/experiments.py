@@ -186,8 +186,8 @@ def nn_search(args):
 
                 for learning_rate in config['dnn_exp_params']['learning_rate']:
 
-                    rank_net = ModelCollection.seed_model(models.models[model_name],
-                                                          torch_seed=torch_seed)
+                    rank_net = models.models[model_name]
+                    ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
 
                     dnn_model = DeepNet(data.n_users, data.n_items,
                                         embedding_dim=config['embedding_dim'],
@@ -417,11 +417,11 @@ def covariance_analysis(args):
                 corr_stats.append(np.nan)
 
         results[entity_type] = pd.Series(corr_stats)
-        _logger.info("\nEntity Type:", entity_type)
-        _logger.info("Ignore Sparse Zeros:", cov_config['ignore_sparse_zeros'])
-        _logger.info("Use Zero Mean:", cov_config['use_zero_mean'])
-        _logger.info("Correlation Type:", cov_config['corr_type'])
-        _logger.info("---\nStats:\n---")
+        _logger.info("Entity Type: %s", entity_type)
+        _logger.info("Ignore Sparse Zeros: %s", cov_config['ignore_sparse_zeros'])
+        _logger.info("Use Zero Mean: %s", cov_config['use_zero_mean'])
+        _logger.info("Correlation Type: %s", cov_config['corr_type'])
+        _logger.info("\n---\nStats:\n---")
         _logger.info(pd.Series(corr_stats).describe())
 
         results[entity_type] = pd.DataFrame.from_dict({
