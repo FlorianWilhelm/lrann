@@ -6,6 +6,7 @@ from collections import Counter
 import logging
 import sys
 import time
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -14,7 +15,7 @@ from torch import nn
 import yaml
 
 from .datasets import DataLoader, random_train_test_split
-from .estimators import ImplicitEst, ExplicitEst
+from .estimators import ImplicitEst, ExplicitEst, BaseEstimator
 from .models import BilinearNet, DeepNet
 from .utils import is_cuda_available, get_entity_corr_coef
 from .evaluations import mrr_score, precision_recall_score
@@ -160,28 +161,7 @@ def nn_search(args):
 
     for mode in config['dnn_exp_params']['mode']:
 
-        # TODO: DRY!
-        if mode == 'unpretrained_trainable':
-            user_embedding_layer = None
-            item_embedding_layer = None
-
-        elif mode == 'pretrained_untrainable':
-            untrainable = True
-            user_embedding_layer = torch.nn.Embedding.from_pretrained(
-                    latent_factors['user_embedding'],
-                    freeze=untrainable)
-            item_embedding_layer = torch.nn.Embedding.from_pretrained(
-                    latent_factors['item_embedding'],
-                    freeze=untrainable)
-
-        elif mode == 'pretrained_trainable':
-            untrainable = False
-            user_embedding_layer = torch.nn.Embedding.from_pretrained(
-                    latent_factors['user_embedding'],
-                    freeze=untrainable)
-            item_embedding_layer = torch.nn.Embedding.from_pretrained(
-                    latent_factors['item_embedding'],
-                    freeze=untrainable)
+        user_embedding_layer, item_embedding_layer = get_embeddings(mode, latent_factors)
 
         for model_name in config['dnn_exp_params']['model']:
 
@@ -443,6 +423,111 @@ def covariance_analysis(args):
     results_df.to_csv(args.output_filepath, index=False)
     _logger.info("Covariance Analysis finished, saved results to {}".format(
         args.output_filepath))
+
+
+def get_embeddings(mode: str, latent_factors: dict) -> tuple:
+    """
+    Retrieves Embedding Layers (potentially from pretrained latent vectors)
+
+    Args:
+        mode:
+        latent_factors:
+
+    Returns:
+
+    """
+    if mode == 'unpretrained_trainable':
+        user_embedding_layer = None
+        item_embedding_layer = None
+
+    elif mode == 'pretrained_untrainable':
+        untrainable = True
+        user_embedding_layer = torch.nn.Embedding.from_pretrained(
+                latent_factors['user_embedding'],
+                freeze=untrainable)
+        item_embedding_layer = torch.nn.Embedding.from_pretrained(
+                latent_factors['item_embedding'],
+                freeze=untrainable)
+
+    elif mode == 'pretrained_trainable':
+        untrainable = False
+        user_embedding_layer = torch.nn.Embedding.from_pretrained(
+                latent_factors['user_embedding'],
+                freeze=untrainable)
+        item_embedding_layer = torch.nn.Embedding.from_pretrained(
+                latent_factors['item_embedding'],
+                freeze=untrainable)
+
+    return user_embedding_layer, item_embedding_layer
+
+
+def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str, model: str, torch_seed: int,
+                        learning_rate: float, epoch: int) -> BaseEstimator:
+    """
+
+    Args:
+        mode:
+        model:
+        torch_seed:
+        learning_rate:
+        epoch:
+
+    Returns:
+
+    """
+    _logger.info(("Retrieving Model:"
+                  "\nMode:{}"
+                  "\nModel: {}"
+                  "\nTorch Seed: {}"
+                  "\nLearning Rate: {}"
+                  "\nEpoch: {}").format(mode, model, torch_seed, learning_rate, epoch))
+
+    config = yaml.load(open(config_filepath, 'r'), Loader=yaml.FullLoader)
+
+    data = DataLoader().load_movielens('100k')
+    data.implicit_(use_user_mean=True)
+    rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
+    train_data, test_data = random_train_test_split(data,
+                                                    test_percentage=config[
+                                                        'test_percentage'],
+                                                    random_state=rd_split_state)
+
+    n_pos = pd.Series(data.ratings).value_counts(normalize=False)[1.0]
+    _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
+
+    latent_factors = get_latent_factors(train_data, test_data, config)
+    if not use_hadamard:
+        models = ModelCollection(input_size=config['embedding_dim'] * 2)
+    else:
+        models = ModelCollection(input_size=config['embedding_dim'])
+
+    user_embedding_layer, item_embedding_layer = get_embeddings(mode, latent_factors)
+
+    rank_net = models.models[model]
+    ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
+
+    dnn_model = DeepNet(data.n_users, data.n_items,
+                        embedding_dim=config['embedding_dim'],
+                        rank_net=rank_net,
+                        user_embedding_layer=user_embedding_layer,
+                        item_embedding_layer=item_embedding_layer,
+                        use_hadamard=use_hadamard,
+                        torch_seed=torch_seed)
+
+    dnn_est = ImplicitEst(model=dnn_model,
+                          n_iter=1,
+                          use_cuda=is_cuda_available(),
+                          random_state=np.random.RandomState(
+                              seed=torch_seed),
+                          learning_rate=learning_rate)
+
+    for epoch in range(epoch+1):
+        dnn_est.fit(test_data, verbose=False)
+
+    test_mrr = mrr_score(dnn_est, test_data).mean()
+    print("Retrieved Mode {}, Model {} with MRR {:.4f}".format(mode, model, test_mrr))
+
+    return dnn_est
 
 
 def run():
