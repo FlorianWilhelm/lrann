@@ -271,6 +271,7 @@ class DeepNet(BaseModel):
         if not self.use_hadamard:
             embedding = torch.cat([user_embedding, item_embedding], dim=1)
         else:
+            #TODO: Add biases from MF to final result?
             embedding = user_embedding * item_embedding
 
         # dispatch to allow calling the actual network manually

@@ -161,8 +161,6 @@ def nn_search(args):
 
     for mode in config['dnn_exp_params']['mode']:
 
-        user_embedding_layer, item_embedding_layer = get_embeddings(mode, latent_factors)
-
         for model_name in config['dnn_exp_params']['model']:
 
             for torch_seed in config['dnn_exp_params']['torch_init_seed']:
@@ -171,6 +169,8 @@ def nn_search(args):
 
                     rank_net = models.models[model_name]
                     ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
+                    user_embedding_layer, item_embedding_layer = \
+                        get_embeddings(mode, latent_factors)
 
                     dnn_model = DeepNet(data.n_users, data.n_items,
                                         embedding_dim=config['embedding_dim'],
