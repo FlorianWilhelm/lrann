@@ -452,8 +452,8 @@ def get_embeddings(mode: str, latent_factors: dict) -> tuple:
                         latent_factors['user_embedding']),
                 freeze=untrainable)
         item_embedding_layer = torch.nn.Embedding.from_pretrained(
-                torch.Tensor(latent_factors['user_embedding'].size()).copy_(
-                        latent_factors['user_embedding']),
+                torch.Tensor(latent_factors['item_embedding'].size()).copy_(
+                        latent_factors['item_embedding']),
                 freeze=untrainable)
 
     return user_embedding_layer, item_embedding_layer
