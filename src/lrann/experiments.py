@@ -459,7 +459,8 @@ def get_embeddings(mode: str, latent_factors: dict) -> tuple:
     return user_embedding_layer, item_embedding_layer
 
 
-def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str, model: str, torch_seed: int,
+def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str,
+                        model: str, torch_seed: int,
                         learning_rate: float, epoch: int) -> BaseEstimator:
     """
 
@@ -515,15 +516,15 @@ def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str, mod
     dnn_est = ImplicitEst(model=dnn_model,
                           n_iter=1,
                           use_cuda=is_cuda_available(),
-                          random_state=np.random.RandomState(
-                              seed=torch_seed),
+                          random_state=np.random.RandomState(seed=config['estimator_init_seed']),
                           learning_rate=learning_rate)
 
     for epoch in range(epoch+1):
-        dnn_est.fit(test_data, verbose=False)
+        dnn_est.fit(train_data, verbose=False)
+        print(mrr_score(dnn_est, test_data).mean())
 
     test_mrr = mrr_score(dnn_est, test_data).mean()
-    print("Retrieved Mode {}, Model {} with MRR {:.4f}".format(mode, model, test_mrr))
+    print("Retrieved Mode {}, Model {} with MRR {:.6f}".format(mode, model, test_mrr))
 
     return dnn_est
 
