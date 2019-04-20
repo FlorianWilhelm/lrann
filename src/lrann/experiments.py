@@ -167,10 +167,10 @@ def nn_search(args):
 
                 for learning_rate in config['dnn_exp_params']['learning_rate']:
 
-                    rank_net = models.models[model_name]
-                    ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
                     user_embedding_layer, item_embedding_layer = \
                         get_embeddings(mode, latent_factors)
+                    rank_net = models.models[model_name]
+                    ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
 
                     dnn_model = DeepNet(data.n_users, data.n_items,
                                         embedding_dim=config['embedding_dim'],
@@ -213,8 +213,15 @@ def nn_search(args):
                         results.append(result)
 
                         exp_counter += 1
+                        # Constantly save best network to disk for later retrieval
                         if dnn_test_mrr > current_best_mrr:
                             current_best_mrr = dnn_test_mrr
+                            torch.save(dnn_model.state_dict(),
+                                       'best_dnn_model_{}_{}.pth'.format(
+                                               mode,
+                                               str(learning_rate),
+                                               config['dnn_exp_params']['use_hadamard']
+                                       ))
                         logging.info("Finished Experiment {:05d}/{:05d} - current best MRR {:.4f}".format(
                                 exp_counter, n_experiments, current_best_mrr
                         ))
