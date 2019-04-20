@@ -217,7 +217,7 @@ def nn_search(args):
                         if dnn_test_mrr > current_best_mrr:
                             current_best_mrr = dnn_test_mrr
                             torch.save(dnn_model.state_dict(),
-                                       'best_dnn_model_{}_{}.pth'.format(
+                                       'best_dnn_model_{}_{}_{}.pth'.format(
                                                mode,
                                                str(learning_rate),
                                                config['dnn_exp_params']['use_hadamard']
