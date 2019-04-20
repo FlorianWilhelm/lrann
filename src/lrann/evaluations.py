@@ -140,6 +140,53 @@ def precision_recall_score(model, test, train=None, k=10):
     return precision, recall
 
 
+def auc_score(model, test, train=None, auc_selection_seed=42):
+    """
+    See https://arxiv.org/pdf/1508.06091.pdf
+
+    Args:
+        model:
+        test:
+        train:
+        auc_selection_seed:
+
+    Returns:
+
+    """
+    # TODO: Implement known positive removal (not urgent as not applicable for MovieLens)
+    test = test.tocsr()
+    np.random.seed(auc_selection_seed)
+
+    auc_score = []
+
+    for user_id, row in enumerate(test):
+
+        if not len(row.indices):
+            continue
+
+        # Make predictions for all items
+        predictions = model.predict(user_id)
+
+        pos_targets = row.indices
+        n_preds = len(pos_targets)
+        neg_targets = np.setdiff1d(np.arange(len(predictions)), pos_targets)
+        neg_targets = np.random.choice(neg_targets, size=n_preds, replace=False)
+
+        # Obtain predictions for all positives
+        pos_predictions = predictions[pos_targets]
+
+        # Obtain predictions for random set of unobserved that has the same length
+        # as the positives
+        neg_predictions = predictions[neg_targets]
+
+        # Compare both ratings for ranking distortions, i.e. positive < negative
+        user_auc_score = (pos_predictions > neg_predictions).sum()/n_preds
+
+        auc_score.append(user_auc_score)
+
+    return auc_score
+
+
 def rmse_score(model, test):
     """
     Compute RMSE score for test interactions.
