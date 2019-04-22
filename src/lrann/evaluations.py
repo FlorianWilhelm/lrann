@@ -184,7 +184,7 @@ def auc_score(model, test, train=None, auc_selection_seed=42):
 
         auc_score.append(user_auc_score)
 
-    return auc_score
+    return np.array(auc_score)
 
 
 def rmse_score(model, test):

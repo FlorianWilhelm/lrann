@@ -466,6 +466,28 @@ def get_embeddings(mode: str, latent_factors: dict) -> tuple:
     return user_embedding_layer, item_embedding_layer
 
 
+def retrieve_estimator(data, use_hadamard: bool, embedding_dim: int,
+                       model_name: dict, model_parameters_filepath: str):
+    if not use_hadamard:
+        models = ModelCollection(input_size=embedding_dim * 2)
+    else:
+        models = ModelCollection(input_size=embedding_dim)
+
+    rank_net = models.models[model_name]
+
+    dnn_model = DeepNet(data.n_users, data.n_items,
+                        embedding_dim=embedding_dim,
+                        rank_net=rank_net,
+                        use_hadamard=use_hadamard)
+
+    dnn_model.load_state_dict(torch.load(model_parameters_filepath))
+
+    dnn_est = ImplicitEst(model=dnn_model,
+                          use_cuda=is_cuda_available())
+
+    return dnn_est
+
+
 def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str,
                         model: str, torch_seed: int,
                         learning_rate: float, epoch: int) -> BaseEstimator:

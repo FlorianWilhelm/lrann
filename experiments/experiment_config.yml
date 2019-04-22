@@ -3,6 +3,7 @@ torch_init_seed: 42
 estimator_init_seed: 42
 test_percentage: 0.2
 embedding_dim: 32
+auc_selection_seed: 42
 
 mf_grid_search:
   torch_init_seed: [42, 147, 17, 28, 83]
@@ -19,6 +20,7 @@ mf_best_params:
   n_epochs: 15  # keep in mind that epochs are 0-indexed, such that the best score after epoch 14 means training 15 epochs
   mrr: 0.043602
   prec_at_10: 0.070638
+  auc: 0.921050
 
 # Set of Parameters to try permutations in order to beat the MF baseline
 dnn_exp_params:
