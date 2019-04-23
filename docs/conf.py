@@ -100,7 +100,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'lrann'
-copyright = u'2019, Florian Wilhelm'
+copyright = u'2019, Anonymous_1'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -254,7 +254,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'user_guide.tex', u'lrann Documentation',
-   u'Florian Wilhelm', 'manual'),
+   u'Anonymous_1', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
