@@ -6,7 +6,7 @@ from collections import Counter
 import logging
 import sys
 import time
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -76,9 +76,10 @@ def setup_logging(loglevel):
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 
-def get_latent_factors(train_data, test_data, config):
+def get_latent_factors(train_data, test_data, config) -> dict:
     """
-    Retrieves the best MF model, trains it and returns its embeddings
+    Initializes MF model, trains it according to configuration
+    and returns the latent factors for users and items
 
     Args:
         train_data:
@@ -116,6 +117,13 @@ def get_latent_factors(train_data, test_data, config):
 
 
 def nn_search(args):
+    """
+    Trains neural networks according to configuration file provided with
+    the input arguments and saves results as a .csv file in respective filepath
+
+    Args:
+        args:
+    """
     # Params should contain best MF parameters as well as test configurations
     _logger.info("Starting MF vs. DNN Experiments ...")
 
@@ -251,6 +259,14 @@ def nn_search(args):
 
 
 def mf_hyperopt(args):
+    """
+    Performs Grid Search for Hyperparameter Grid provided as part of `args`
+    and saves the results in `a .csv-file whose filepath is provided as part
+    of `args
+
+    Args:
+        args:
+    """
     _logger.info("Starting MF (BilinearNet) Hyperparameter Search ...")
 
     config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
@@ -336,6 +352,14 @@ def mf_hyperopt(args):
 
 
 def covariance_analysis(args):
+    """
+    Executes the covariance experiment as described in the paper according
+    to the configuration provided along with the input arguments and
+    saves the results as a .csv file whose filepath is also defined in `args`
+
+    Args:
+        args:
+    """
     _logger.info("Starting Covariance Experiments ...")
 
     config = yaml.load(open(args.config_filepath, 'r'), Loader=yaml.FullLoader)
@@ -383,7 +407,7 @@ def covariance_analysis(args):
     mf_est.fit(data, verbose=True)
 
     # Obtain Model Latent Vectors for Covariance Analysis
-    embeddings = {}
+    embeddings = dict()
     embeddings['user'] = mf_model.user_embeddings.weight.detach().numpy()
     embeddings['item'] = mf_model.item_embeddings.weight.detach().numpy()
 
@@ -424,8 +448,6 @@ def covariance_analysis(args):
         results[entity_type]['interaction_count'] = \
             results[entity_type]['entity_id'].map(interaction_counts[entity_type])
 
-    # TODO: Generate visualizations in JuPyter notebook
-
     results_df = pd.concat([results['user'], results['item']], axis=0)
     results_df.to_csv(args.output_filepath, index=False)
     _logger.info("Covariance Analysis finished, saved results to {}".format(
@@ -435,13 +457,15 @@ def covariance_analysis(args):
 def get_embeddings(mode: str, latent_factors: dict) -> tuple:
     """
     Retrieves Embedding Layers (potentially from pretrained latent vectors)
+    that constitute the estimator along with the RankNet
 
     Args:
         mode:
         latent_factors:
 
     Returns:
-
+        user_embedding_layer
+        item_embedding_layer
     """
     if mode == 'unpretrained_trainable':
         user_embedding_layer = None
@@ -468,6 +492,21 @@ def get_embeddings(mode: str, latent_factors: dict) -> tuple:
 
 def retrieve_estimator(data, use_hadamard: bool, embedding_dim: int,
                        model_name: dict, model_parameters_filepath: str):
+    """
+    Retrieves a specific model saved during experiments
+    of `experiments.nn_search` by initializing the respective model
+    architecture and loading the parameters from the provided file
+
+    Args:
+        data:
+        use_hadamard:
+        embedding_dim:
+        model_name:
+        model_parameters_filepath:
+
+    Returns:
+        dnn_est: Estimator that encapsulates the retrieved model
+    """
     if not use_hadamard:
         models = ModelCollection(input_size=embedding_dim * 2)
     else:
@@ -484,76 +523,6 @@ def retrieve_estimator(data, use_hadamard: bool, embedding_dim: int,
 
     dnn_est = ImplicitEst(model=dnn_model,
                           use_cuda=is_cuda_available())
-
-    return dnn_est
-
-
-def retrieve_experiment(config_filepath: str, use_hadamard: bool, mode: str,
-                        model: str, torch_seed: int,
-                        learning_rate: float, epoch: int) -> BaseEstimator:
-    """
-
-    Args:
-        mode:
-        model:
-        torch_seed:
-        learning_rate:
-        epoch:
-
-    Returns:
-
-    """
-    _logger.info(("Retrieving Model:"
-                  "\nMode:{}"
-                  "\nModel: {}"
-                  "\nTorch Seed: {}"
-                  "\nLearning Rate: {}"
-                  "\nEpoch: {}").format(mode, model, torch_seed, learning_rate, epoch))
-
-    config = yaml.load(open(config_filepath, 'r'), Loader=yaml.FullLoader)
-
-    data = DataLoader().load_movielens('100k')
-    data.implicit_(use_user_mean=True)
-    rd_split_state = np.random.RandomState(seed=config['train_test_split_seed'])
-    train_data, test_data = random_train_test_split(data,
-                                                    test_percentage=config[
-                                                        'test_percentage'],
-                                                    random_state=rd_split_state)
-
-    n_pos = pd.Series(data.ratings).value_counts(normalize=False)[1.0]
-    _logger.info("{}/{} positive interactions found.".format(n_pos, len(data.ratings)))
-
-    latent_factors = get_latent_factors(train_data, test_data, config)
-    if not use_hadamard:
-        models = ModelCollection(input_size=config['embedding_dim'] * 2)
-    else:
-        models = ModelCollection(input_size=config['embedding_dim'])
-
-    user_embedding_layer, item_embedding_layer = get_embeddings(mode, latent_factors)
-
-    rank_net = models.models[model]
-    ModelCollection.seed_model(rank_net, torch_seed=torch_seed)
-
-    dnn_model = DeepNet(data.n_users, data.n_items,
-                        embedding_dim=config['embedding_dim'],
-                        rank_net=rank_net,
-                        user_embedding_layer=user_embedding_layer,
-                        item_embedding_layer=item_embedding_layer,
-                        use_hadamard=use_hadamard,
-                        torch_seed=torch_seed)
-
-    dnn_est = ImplicitEst(model=dnn_model,
-                          n_iter=1,
-                          use_cuda=is_cuda_available(),
-                          random_state=np.random.RandomState(seed=config['estimator_init_seed']),
-                          learning_rate=learning_rate)
-
-    for epoch in range(epoch+1):
-        dnn_est.fit(train_data, verbose=False)
-        print(mrr_score(dnn_est, test_data).mean())
-
-    test_mrr = mrr_score(dnn_est, test_data).mean()
-    print("Retrieved Mode {}, Model {} with MRR {:.6f}".format(mode, model, test_mrr))
 
     return dnn_est
 

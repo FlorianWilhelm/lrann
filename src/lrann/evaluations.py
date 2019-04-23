@@ -153,7 +153,7 @@ def auc_score(model, test, train=None, auc_selection_seed=42):
     Returns:
 
     """
-    # TODO: Implement known positive removal (not urgent as not applicable for MovieLens)
+    # TODO: Implement known positive removal (not urgent as not applicable for Movielens)
     test = test.tocsr()
     np.random.seed(auc_selection_seed)
 

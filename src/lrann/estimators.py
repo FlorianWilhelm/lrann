@@ -179,7 +179,7 @@ class ImplicitEst(BaseEstimator):
                                  .format(epoch_loss))
 
     def _get_negative_prediction(self, user_ids):
-
+        """Uniformly samples negative items from the whole item set"""
         negative_items = sample_items(
             self._model.n_items,
             len(user_ids),
